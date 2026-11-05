@@ -1,0 +1,15 @@
+**/node_modules
+**/.next
+**/.pytest_cache
+**/__pycache__
+**/.venv
+.git
+.env
+.env.*
+!.env.example
+.agents
+.aws
+.codex
+.codex-work
+.playwright-mcp
+AGENTS.md

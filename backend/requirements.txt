@@ -1,0 +1,11 @@
+fastapi>=0.115,<1
+uvicorn[standard]>=0.34,<1
+pydantic>=2.10,<3
+pydantic-settings>=2.8,<3
+httpx>=0.28,<1
+defusedxml>=0.7.1,<1
+langchain>=1.0,<2
+langchain-google-genai>=3.0,<5
+langchain-groq>=1.0,<2
+langgraph>=1.0,<2
+pyproj>=3.6,<4
