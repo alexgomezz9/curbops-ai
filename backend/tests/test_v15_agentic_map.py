@@ -55,12 +55,17 @@ def test_avoidance_uses_provider_geometry_and_detour_budget():
         called.append(points)
         # True provider would snap the via coordinate to the street graph.
         path=[points[0],points[1],points[-1]]
-        return path, 4.0, 12.0
+        # Baseline street-leg calls must not report the detour cost: inconsistent
+        # provider test data would make an extra-km calculation meaningless.
+        km, minutes = (4.0,12.0) if len(points)>2 else (3.0,10.0)
+        return path, km, minutes
     computed,proof=asyncio.run(attempt_rehearsal_detours(plan,incident,real_provider_mock))
     assert proof['V-01']['checked_alternatives']>=1
     assert proof['V-01']['geometry_changed'],proof
     assert not corridor_hit(computed.routes[0].coordinates,incident)
-    assert computed.routes[0].distance_km==4
+    # Both outbound and return road legs cross the hypothetical zone;
+    # one provider-verified detour per affected leg adds 1 km each.
+    assert computed.routes[0].distance_km==5
     assert incident.id not in computed.routes[0].incidents_near
     # A dramatic detour must be rejected even when it avoids the risk.
     async def expensive_provider(points):return [points[0],points[1],points[-1]],15.0,120.0

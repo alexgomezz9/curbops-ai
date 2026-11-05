@@ -17,6 +17,7 @@ from ..store import DemoStore
 from ..settings import get_settings
 from ..services.routing import fetch_road_route, fetch_road_matrix
 from ..services.road_plans import build_road_network_plan
+from ..services.request_scope import requests_whole_fleet, resolve_avoidance_scope
 
 EventCallback = Callable[[dict[str, Any]], None]
 
@@ -28,11 +29,11 @@ A = original fictional fleet. B = road-network delivery-order optimization. C = 
 
 If the operator says investigate, explain, or show: use READ tools and map actions, never replan. For a whole fleet assessment use investigate_fleet_disruptions; for vehicle use inspect_vehicle_corridor and show_vehicle_on_map. For sensor investigation use inspect_route_traffic_measurements. For comparing plans call compare_dispatch_scenarios and show_comparison_on_map. No fake calls.
 
-If the operator explicitly asks to AVOID, BYPASS, REROUTE AROUND, or find ALTERNATIVE ROUTES AROUND nearby incidents/roadworks/traffic hazard points, use prepare_precautionary_avoidance instead of ordinary prepare_dispatch_proposal. This is an operator-requested *hypothetical preventative* avoidance of selected risk zones, not a verified closure. It is valid to request it for the whole fleet. That tool actually asks the provider for alternative road geometries and checks them; if there is no verified alternative, report why, NEVER state 'avoided'. You may not rewrite the geometry yourself.
+If the operator explicitly asks to AVOID, BYPASS, REROUTE AROUND, or find ALTERNATIVE ROUTES AROUND nearby incidents/roadworks/traffic hazard points, use prepare_precautionary_avoidance instead of ordinary prepare_dispatch_proposal. This is an operator-requested *hypothetical preventative* avoidance of selected risk zones, not a verified closure. For a request about the WHOLE FLEET, use vehicle_id="ALL" and incident_id="" unless the CURRENT message explicitly names an incident ID. NEVER use a previous map selection as the implicit filter. That tool actually asks the provider for alternative road geometries and checks them; if there is no verified alternative, report why, NEVER state 'avoided'. You may not rewrite the geometry yourself.
 
 If the operator explicitly asks only to recalculate general optimization, call prepare_dispatch_proposal once, then compare_dispatch_scenarios and show_comparison_on_map. If they ask for an explicit synthetic what-if obstacle, rehearse_incident_response is available. Never generate a proposal for unrelated queries.
 
-When tools return verified_vehicle_detours=0, explain the limitation honestly and don't imply C avoids zones. Provide precise counts where available. For successful avoidance include vehicle IDs, avoided incident IDs, extra kilometres and base minutes, and show B/C. Never approve or dispatch; approval is a human-only control. Keep to 2–5 tool calls for simple requests. Never reveal private model chain of thought or internal optimizer weights."""
+When tools return verified_vehicle_detours=0, explain the limitation honestly and don't imply C avoids zones. Provide precise counts where available. For successful avoidance include vehicle IDs, avoided incident IDs, extra kilometres and base minutes, and show B/C. Never approve or dispatch; approval is a human-only control. When tools show a requested_scope of ALL, report V-01/V-02/V-03 outcomes separately. Distinguish nearby_count from congested_count; never call all nearby sensor points congested. Map focus from a previous user turn is NOT permission to narrow the current query. Keep to 2–5 tool calls for simple requests. Never reveal private model chain of thought or internal optimizer weights."""
 
 
 def usage_from_llm_result(result: Any) -> tuple[int, int] | None:
@@ -420,9 +421,9 @@ def _try_real_agent(store: DemoStore, message: str, model_tier: str = 'efficient
     @tool
     def investigate_fleet_disruptions(scenario: str = 'C') -> str:
         """SCREEN ALL vans on their true road geometries for nearby municipal notices and sampled sensor congestion; focus and highlight one vehicle on the map. Read-only. This is the first tool for a broad fleet-risk investigation; it NEVER reoptimizes."""
-        from ..services.fleet_impact import fleet_impact
+        from ..services.fleet_review_graph import review_fleet_graph
         def inspect():
-            report = fleet_impact(store, scenario)
+            report = review_fleet_graph(store, scenario, on_step=lambda node: emit(on_event, 'workflow.node_completed', node=node))
             vehicle = report['recommended_focus']
             if vehicle:
                 queue_action('select_scenario', scenario)
@@ -474,9 +475,25 @@ def _try_real_agent(store: DemoStore, message: str, model_tier: str = 'efficient
         """On an EXPLICIT request to avoid risky areas, calculate provider-VERIFIED preventative street detours for one or ALL vans. Incidents are hypothetical avoid zones, NOT proven closures. The result reports successes and failures. NEVER approve/dispatch."""
         from ..services.precautionary import prepare_precautionary_plan
         def prepare():
+            # The current operator request is authoritative over stale visual
+            # focus or prior conversation. LLM arguments are only proposals.
+            target_vehicle, target_incident = resolve_avoidance_scope(message, vehicle_id, incident_id)
+            # Normalize IDs to their canonical spelling; an absent simulated
+            # roadwork is a recoverable precondition, not an exception that
+            # aborts the entire agent run.
+            if target_incident:
+                matched = next((i.id for i in store.incidents if i.id.casefold()==target_incident.casefold()), None)
+                if matched:
+                    target_incident = matched
+                elif target_incident.upper() == 'SIM-ROADWORKS':
+                    return 'SIM-ROADWORKS is not active. Create a synthetic what-if scenario before requesting its avoidance; no route changed.'
+                else:
+                    return f'Notice {target_incident} is not present in the current municipal snapshot. Refresh city data or inspect the available incidents.'
             wanted=('avoid', 'bypass', 'detour', 'rerout', 'evit', 'esquiv', 'rodear', 'alternativa', 'alternative')
             if not any(term in message.lower() for term in wanted):
                 return 'Not executed: the operator did not request hazard avoidance.'
+            if target_incident.upper() == 'SIM-ROADWORKS' and not any(i.id == 'SIM-ROADWORKS' for i in store.incidents):
+                return 'SIM-ROADWORKS is not active. Create a synthetic what-if scenario before requesting avoidance; no route changed.'
             if proposal_attempt['done']:
                 return 'A route proposal was already generated in this investigation. Avoid mixing separate plan writes.'
             proposal_attempt['done']=True
@@ -485,19 +502,28 @@ def _try_real_agent(store: DemoStore, message: str, model_tier: str = 'efficient
                 if store.no_risk_plan is None:
                     return f'Could not calculate street scenario B: {first}'
             from ..settings import get_settings
+            from ..services.routing import fetch_road_alternatives
             async def ors_avoid(points,poly):
                 return await fetch_road_route(points,avoid_polygons=poly)
             def notify(kind,data):
                 emit(on_event,kind,**data)
             result=asyncio.run(prepare_precautionary_plan(
-                store,fetch_road_route,vehicle_id=vehicle_id,
-                incident_ids=[incident_id] if incident_id else None,
+                store,fetch_road_route,vehicle_id=target_vehicle,
+                incident_ids=[target_incident] if target_incident else None,
                 ors_avoid=ors_avoid if get_settings().routing_provider=='ors' else None,
+                alternative_fetcher=(fetch_road_alternatives if get_settings().routing_provider=='osrm_demo' else None),
                 progress=notify))
             queue_action('show_comparison','BC')
             successful=[row for row in result['vehicles'] if row['verified']]
-            if len(successful)==1:
-                queue_action('select_vehicle',successful[0]['vehicle_id'])
+            if target_vehicle == 'ALL':
+                queue_action('fit_routes')
+                if successful:
+                    queue_action('highlight_avoidance_results','ALL')
+            elif successful:
+                queue_action('select_vehicle',target_vehicle)
+                queue_action('highlight_avoidance_results',target_vehicle)
+            result['requested_scope'] = target_vehicle
+            result['requested_incident_id'] = target_incident or None
             # Keep the tool result structured so the LLM cannot confuse A/C
             # savings with B/C road-geometry differences.
             return json.dumps(result,ensure_ascii=False)
@@ -559,7 +585,11 @@ def _try_real_agent(store: DemoStore, message: str, model_tier: str = 'efficient
     # session. Current store/tool readings always outrank conversation memory.
     model_messages = [{'role': turn.role, 'content': turn.content} for turn in (history or [])[-10:]]
     ui_hint = ''
-    if context:
+    if requests_whole_fleet(message):
+        ui_hint = ('\n\n[The CURRENT request has whole-fleet scope. '
+                   'Any previously focused vehicle or incident is NOT a filter. '
+                   'Do not narrow the plan or map view based on earlier selections.]')
+    elif context:
         ui_hint = (f'\n\n[Current map selection (advisory, verify with tools): '
                    f'vehicle={context.selected_vehicle or "none"}, '
                    f'incident={context.selected_incident or "none"}, '
