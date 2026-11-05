@@ -28,6 +28,13 @@ def _distance_m(point: Coordinate, geometry: list[Coordinate]) -> float:
     return 1000 * min(point_segment_km(point, a, b) for a, b in zip(geometry, geometry[1:]))
 
 
+def _visits_required_stops(geometry: list[Coordinate], waypoints: list[Coordinate]) -> bool:
+    # A route cannot count as a verified bypass if the provider response has
+    # silently dropped a delivery, even when it avoids all obstacle buffers.
+    # Allow modest road snapping around a delivery coordinate.
+    return len(geometry) > 1 and all(_distance_m(stop, geometry) <= 125 for stop in waypoints)
+
+
 def _side_points(geometry: list[Coordinate], incident: Incident) -> list[Coordinate]:
     """Generate bounded, deterministic shapes; road provider must verify each."""
     position = min(range(len(geometry)-1), key=lambda i:point_segment_km(
@@ -96,7 +103,7 @@ def _polygon(incidents: list[Incident]) -> dict[str, Any]:
 
 async def _shape_one_route(route, events: list[Incident], fetcher: RouteFetcher,
                            *, ors_avoid: RouteFetcher | None = None,
-                           max_candidates: int = 10) -> tuple[Any,dict]:
+                           max_candidates: int = 10,alternative_fetcher=None) -> tuple[Any,dict]:
     affected=[event for event in events if corridor_hit(route.coordinates,event)]
     detail={'vehicle_id':route.vehicle_id,'incident_ids':[e.id for e in affected],
             'avoided_ids':[],'still_near_ids':[],'provider_checks':0,
@@ -104,6 +111,39 @@ async def _shape_one_route(route, events: list[Incident], fetcher: RouteFetcher,
             'extra_km':0.0,'extra_base_minutes':0.0}
     if not affected:
         return route,detail
+    if len(affected) > 1:
+        # Treat each candidate zone independently first. Previously the entire
+        # vehicle detour was rejected unless ONE path avoided every adjacent
+        # municipal point: a viable one-zone detour could be lost this way.
+        # The other points remain explicitly unresolved in the audit.
+        winner = None
+        attempts = []
+        for event in affected:
+            candidate, proof = await _shape_one_route(
+                route, [event], fetcher, ors_avoid=ors_avoid,
+                max_candidates=max_candidates, alternative_fetcher=alternative_fetcher)
+            attempts.append({'incident_id':event.id, 'verified':proof['verified'],
+                             'reason':proof['reason'], 'provider_checks':proof['provider_checks']})
+            detail['provider_checks'] += proof['provider_checks']
+            if not proof['verified'] or not _visits_required_stops(candidate.coordinates, [
+                DEPOT, *[d.location for stop in route.stop_ids for d in DELIVERIES if d.id == stop], DEPOT
+            ]):
+                continue
+            avoided = [e.id for e in affected if not corridor_hit(candidate.coordinates, e)]
+            score = (len(avoided), -max(0.0, candidate.estimated_minutes-route.estimated_minutes))
+            if winner is None or score > winner[0]:
+                winner = (score, candidate, proof, avoided)
+        detail['zone_attempts'] = attempts
+        if winner is None:
+            detail.update(reason='No individual requested risk zone could be bypassed within limits',
+                          still_near_ids=[e.id for e in affected])
+            return route, detail
+        _, candidate, proof, avoided = winner
+        detail.update(verified=True, avoided_ids=avoided,
+                      still_near_ids=[e.id for e in affected if e.id not in avoided],
+                      reason='Best provider-verified single-zone detour; other risk zones independently reported',
+                      extra_km=proof['extra_km'], extra_base_minutes=proof['extra_base_minutes'])
+        return candidate, detail
     deliveries={d.id:d.location for d in DELIVERIES}
     waypoints=[DEPOT]+[deliveries[stop] for stop in route.stop_ids]+[DEPOT]
     if any(_distance_m(event.location,[stop,stop]) <= event.radius_m for event in affected for stop in waypoints):
@@ -114,6 +154,21 @@ async def _shape_one_route(route, events: list[Incident], fetcher: RouteFetcher,
         return route,detail
     max_extra_minutes=max(10.0,route.estimated_minutes*0.45)
     max_extra_km=max(4.5,route.distance_km*0.45)
+    # Prefer local leg replacement for long routes: a full multi-stop OSRM
+    # request cannot accept more than ten waypoints including added vias.
+    # Each leg is independently routed/verified and stop order is preserved.
+    if len(waypoints) >= 5 and ors_avoid is None:
+        from .leg_avoidance import find_leg_detours
+        local_route, local_detail = await find_leg_detours(route,affected,fetcher,max_checks=22,alternative_fetcher=alternative_fetcher)
+        detail['provider_checks'] += local_detail['provider_checks']
+        if local_detail['verified'] and _visits_required_stops(local_route.coordinates, waypoints):
+            detail.update({k:v for k,v in local_detail.items() if k!='provider_checks'})
+            return local_route,detail
+        detail['leg_strategy_failure']=local_detail['reason']
+        # Do not bombard the public demo with another full-route search after
+        # bounded leg attempts have already exhausted the useful candidates.
+        detail.update(reason=local_detail['reason'],still_near_ids=local_detail['still_near_ids'])
+        return route,detail
     best=None
     if ors_avoid:
         try:
@@ -121,6 +176,7 @@ async def _shape_one_route(route, events: list[Incident], fetcher: RouteFetcher,
             detail['provider_checks']+=1
             if (len(coords)>1 and km>0 and minutes>0 and
                 all(not corridor_hit(coords,e) for e in affected) and
+                _visits_required_stops(coords,waypoints) and
                 km-route.distance_km<=max_extra_km and
                 minutes-route.estimated_minutes<=max_extra_minutes):
                 best=(coords,km,minutes,'ORS provider avoid_polygons')
@@ -162,6 +218,7 @@ async def _shape_one_route(route, events: list[Incident], fetcher: RouteFetcher,
                     continue
                 if len(geometry)<2 or km<=0 or minutes<=0:continue
                 if any(corridor_hit(geometry,event) for event in affected):continue
+                if not _visits_required_stops(geometry,waypoints):continue
                 if km-route.distance_km>max_extra_km or minutes-route.estimated_minutes>max_extra_minutes:continue
                 if best is None or minutes<best[2]:
                     best=(geometry,km,minutes,'OSRM/ORS via-waypoint verified')
@@ -179,10 +236,21 @@ async def _shape_one_route(route, events: list[Incident], fetcher: RouteFetcher,
                         continue
                     if len(geometry)<2 or km<=0 or minutes<=0:continue
                     if any(corridor_hit(geometry,event) for event in affected):continue
+                    if not _visits_required_stops(geometry,waypoints):continue
                     if km-route.distance_km>max_extra_km or minutes-route.estimated_minutes>max_extra_minutes:continue
                     if best is None or minutes<best[2]:
                         best=(geometry,km,minutes,'OSRM/ORS dual via-waypoint verified')
                 if best is not None:break
+    if best is None:
+        # Long multi-stop routes often cannot accept additional OSRM waypoints.
+        # Try independent provider-verified street legs before reporting failure.
+        from .leg_avoidance import find_leg_detours
+        leg_route, leg_detail = await find_leg_detours(route, affected, fetcher, max_checks=24,alternative_fetcher=alternative_fetcher)
+        detail['provider_checks'] += leg_detail['provider_checks']
+        if leg_detail['verified'] and _visits_required_stops(leg_route.coordinates,waypoints):
+            detail.update({k:v for k,v in leg_detail.items() if k != 'provider_checks'})
+            return leg_route, detail
+        detail['leg_strategy_failure'] = leg_detail['reason']
     if best is None:
         detail.update(reason='No verified street detour found within limits; route remains unchanged',
                       still_near_ids=[e.id for e in affected])
@@ -198,7 +266,7 @@ async def _shape_one_route(route, events: list[Incident], fetcher: RouteFetcher,
 
 async def prepare_precautionary_plan(store: DemoStore,fetcher:RouteFetcher,*,
     vehicle_id:str='ALL',incident_ids:list[str]|None=None,
-    ors_avoid=None,progress=None) -> dict:
+    ors_avoid=None,alternative_fetcher=None,progress=None) -> dict:
     """Prepare C as a road-verified preventative alternative to B.
 
     Caller explicitly requests hypothetical avoidance of municipal notices or
@@ -224,18 +292,24 @@ async def prepare_precautionary_plan(store: DemoStore,fetcher:RouteFetcher,*,
         # Operator asked to avoid potential disruptions. Select visible route
         # intersections, prioritizing explicit simulation and severity. Do NOT
         # call this a verified closure or an active municipal incident.
-        selected=sorted(incidents,key=lambda item:(item.provenance.origin!='synthetic',
+        selected=[]
+        ranked=sorted(incidents,key=lambda item:(item.provenance.origin!='synthetic',
                     {'high':0,'medium':1,'low':2}[item.severity],item.id))
-        selected=[item for item in selected if any(
-            (vehicle_id=='ALL' or route.vehicle_id==vehicle_id) and
-            corridor_hit(route.coordinates,item) for route in base.routes)][:4]
+        # Fair coverage: evaluate risks across each selected van instead of
+        # taking four coincident municipal notices from the first corridor.
+        # Bound public routing requests; document the bounded scope explicitly.
+        for route in base.routes:
+            if vehicle_id!='ALL' and route.vehicle_id!=vehicle_id:continue
+            local=[item for item in ranked if corridor_hit(route.coordinates,item)]
+            for item in local[:2]:
+                if item.id not in {x.id for x in selected}:selected.append(item)
     rows=[];details=[]
     for route in base.routes:
         if vehicle_id!='ALL' and route.vehicle_id!=vehicle_id:
             rows.append(route);continue
         relevant=[item for item in selected if corridor_hit(route.coordinates,item)]
         if progress:progress('avoidance.route_started',{'vehicle_id':route.vehicle_id,'incident_ids':[e.id for e in relevant]})
-        candidate,detail=await _shape_one_route(route,relevant,fetcher,ors_avoid=ors_avoid)
+        candidate,detail=await _shape_one_route(route,relevant,fetcher,ors_avoid=ors_avoid,alternative_fetcher=alternative_fetcher)
         rows.append(candidate);details.append(detail)
         if progress:progress('avoidance.route_completed',detail)
     # Use actual route geometry to recalculate all proximity markers, not only
@@ -247,6 +321,9 @@ async def prepare_precautionary_plan(store: DemoStore,fetcher:RouteFetcher,*,
         'exposures':sum(len(r.incidents_near) for r in rows),
         'score':round(sum(r.distance_km for r in rows),2)})
     changed=sum(1 for entry in details if entry['verified'])
+    all_unavoided=sorted({key for row in details for key in row.get('still_near_ids',[])})
+    all_avoided=sorted({key for row in details for key in row.get('avoided_ids',[])})
+
     from uuid import uuid4
     plan=base.model_copy(update={'id':f'precaution-{uuid4().hex[:9]}','status':'proposed',
         'generated_at':datetime.now(timezone.utc).isoformat(),'routes':rows,'metrics':metrics,
@@ -255,7 +332,10 @@ async def prepare_precautionary_plan(store: DemoStore,fetcher:RouteFetcher,*,
     result={'plan_id':plan.id,'mode':'operator_precautionary_what_if',
         'requested_incident_ids':[i.id for i in selected],
         'vehicles':details,'verified_vehicle_detours':changed,
-        'status':'verified_detour' if changed else ('no_matching_incidents' if not selected else 'no_verified_detour'),
+        'avoided_incident_ids':all_avoided,'remaining_incident_ids':all_unavoided,
+        'selection_scope':'at most two nearby notices per affected vehicle unless incident IDs specified',
+        'status':('partially_verified_detour' if all_unavoided else 'verified_detour') if changed else
+                 ('no_matching_incidents' if not selected else 'no_verified_detour'),
         'comparison':{'B_km':base.metrics.distance_km,'C_km':metrics.distance_km,
                       'B_base_min':base.metrics.travel_minutes,'C_base_min':metrics.travel_minutes},
         'disclaimer':'Explicitly hypothetical geometric avoidance, not an officially confirmed closure or live traffic reroute.'}

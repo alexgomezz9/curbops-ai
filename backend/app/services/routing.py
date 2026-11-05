@@ -111,6 +111,48 @@ async def fetch_road_route(points: list[Coordinate], avoid_polygons: dict | None
         return result
 
 
+# Alternate road paths are explicitly requested from OSRM, not invented by the LLM.
+_alt_cache: OrderedDict[tuple,tuple[float,list[tuple[list[Coordinate],float,float]]]] = OrderedDict()
+
+async def fetch_road_alternatives(points: list[Coordinate]) -> list[tuple[list[Coordinate],float,float]]:
+    """Ask the OSRM demo for up to three street alternatives between two stops.
+
+    This cannot guarantee bypassing an incident; every returned geometry must be
+    checked by the separate avoidance service. Shares the demo rate limiter.
+    """
+    global _osrm_last_request
+    if len(points)!=2:
+        raise ValueError('Alternative routes require exactly two street-leg endpoints')
+    _validate_points(points)
+    cfg=get_settings()
+    if cfg.routing_provider!='osrm_demo':return []
+    key=('alternatives',cfg.osrm_base_url,tuple((round(x,6),round(y,6)) for x,y in points))
+    cached=_alt_cache.get(key)
+    if cached and time.monotonic()-cached[0]<_CACHE_TTL_S:return cached[1]
+    async with _osrm_lock:
+        cached=_alt_cache.get(key)
+        if cached and time.monotonic()-cached[0]<_CACHE_TTL_S:return cached[1]
+        wait=max(0.0,1.15-(time.monotonic()-_osrm_last_request))
+        if wait:await asyncio.sleep(wait)
+        _osrm_last_request=time.monotonic()
+        coords=';'.join(f'{lon:.6f},{lat:.6f}' for lon,lat in points)
+        async with httpx.AsyncClient(timeout=25) as client:
+            response=await client.get(f'{cfg.osrm_base_url.rstrip("/")}/route/v1/driving/{coords}',
+                params={'alternatives':'3','overview':'full','geometries':'geojson','steps':'false'})
+            response.raise_for_status()
+            payload=response.json()
+        if payload.get('code')!='Ok':return []
+        result=[]
+        for row in payload.get('routes',[])[:4]:
+            geometry=row.get('geometry',{}).get('coordinates',[])
+            if len(geometry)<2 or row.get('distance',0)<=0 or row.get('duration',0)<=0:continue
+            result.append(([(float(x),float(y)) for x,y in geometry],
+                float(row['distance'])/1000,float(row['duration'])/60))
+        _alt_cache[key]=(time.monotonic(),result)
+        while len(_alt_cache)>_CACHE_MAX:_alt_cache.popitem(last=False)
+        return result
+
+
 # Single-road-matrix cache; routes and tables share the SAME OSRM demo rate limiter.
 _matrix_cache: OrderedDict[tuple,tuple[float,dict]] = OrderedDict()
 

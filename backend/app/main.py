@@ -316,6 +316,7 @@ class PrecautionaryAvoidanceRequest(BaseModel):
 async def precautionary_avoidance(body: PrecautionaryAvoidanceRequest):
     """Operator-requested hypothetical avoidance; never a certified closure."""
     from .services.precautionary import prepare_precautionary_plan
+    from .services.routing import fetch_road_alternatives
     from .settings import get_settings
     configuration=get_settings()
     async def ors_avoid(points, geojson):
@@ -324,7 +325,8 @@ async def precautionary_avoidance(body: PrecautionaryAvoidanceRequest):
         return await prepare_precautionary_plan(
             store, fetch_road_route, vehicle_id=body.vehicle_id,
             incident_ids=body.incident_ids,
-            ors_avoid=ors_avoid if configuration.routing_provider=='ors' else None)
+            ors_avoid=ors_avoid if configuration.routing_provider=='ors' else None,
+            alternative_fetcher=(fetch_road_alternatives if configuration.routing_provider=='osrm_demo' else None))
     except ValueError as exc:
         raise HTTPException(status_code=409,detail=str(exc)) from exc
     except (RuntimeError,httpx.HTTPError) as exc:

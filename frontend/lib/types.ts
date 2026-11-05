@@ -26,7 +26,7 @@ export type IncidentEvidence = {
   note:string;
 };
 
-export type AgentEvent = {type:string;completed?:number;total?:number;group?:string;vehicle_id?:string;km?:number;minutes?:number;original_km?:number;proposed_km?:number;counterfactual_changed?:boolean;points?:number;at?:number;mode?:string;provider?:string;model_id?:string;index?:number;duration_ms?:number;input_tokens?:number|null;output_tokens?:number|null;label?:string;reason?:string;step?:number;tool?:string;detail?:string;trace?:TraceStep;message?:string;action?:AgentMapAction};
+export type AgentEvent = {type:string;verified?:boolean;avoided_ids?:string[];node?:string;completed?:number;total?:number;group?:string;vehicle_id?:string;km?:number;minutes?:number;original_km?:number;proposed_km?:number;counterfactual_changed?:boolean;points?:number;at?:number;mode?:string;provider?:string;model_id?:string;index?:number;duration_ms?:number;input_tokens?:number|null;output_tokens?:number|null;label?:string;reason?:string;step?:number;tool?:string;detail?:string;trace?:TraceStep;message?:string;action?:AgentMapAction};
 
 /** Only observed differences between two successful municipality downloads. */
 export type CityChanges = {available:boolean;previous_at:string|null;current_at:string|null;
@@ -78,9 +78,9 @@ export type RouteIncidentImpact={incident_id:string;title:string;severity:string
 export type VehicleCorridorIncident={id:string;title:string;location:Position;severity:string;origin:string;temporal_status:string;radius_m:number;applied_to_optimizer:boolean;restriction_verified:false};
 export type VehicleCorridor={vehicle_id:string;scenario:'A'|'B'|'C';plan_id:string|null;generation:number;route_fidelity:string;nearby_count:number;applied_count:number;nearby_incidents:VehicleCorridorIncident[];note:string};
 export type IncidentFleetCorridor={incident_id:string;scenario:string;nearby_vehicles:Array<{vehicle_id:string;applied_to_optimizer:boolean;temporal_status:string}>;note:string};
-export type AgentMapAction={type:'select_vehicle'|'select_scenario'|'select_incident'|'show_comparison'|'open_map'|'fit_routes'|'show_traffic'|'highlight_route_incidents'|'highlight_route_sensors';
+export type AgentMapAction={type:'select_vehicle'|'select_scenario'|'select_incident'|'show_comparison'|'open_map'|'fit_routes'|'show_traffic'|'highlight_route_incidents'|'highlight_route_sensors'|'highlight_avoidance_results';
   value:string|null;plan_id:string|null;generation:number|null};
 
 export type RouteTrafficReading={vehicle_id:string;scenario:ScenarioId;route_fidelity:string;sampled_nearby_count:number;showing:number;congested_nearby_count:number;observed_at:string|null;downloaded_at:string|null;congestion_duration_minutes:number|null;congestion_duration_status:string;note:string;observations:Array<{id:string;road_name:string;distance_m:number;service_level:number|null;intensity_vph:number|null;occupancy_pct:number|null;speed_kmh:number|null;location:[number,number]}>};
 
-export type PrecautionaryOutcome={plan_id:string;mode:'operator_precautionary_what_if';requested_incident_ids:string[];verified_vehicle_detours:number;status:'verified_detour'|'no_matching_incidents'|'no_verified_detour';vehicles:Array<{vehicle_id:string;incident_ids:string[];avoided_ids:string[];still_near_ids:string[];verified:boolean;provider_checks:number;reason:string;extra_km:number;extra_base_minutes:number}>;comparison:{B_km:number;C_km:number;B_base_min:number;C_base_min:number};disclaimer:string};
+export type PrecautionaryOutcome={plan_id:string;mode:'operator_precautionary_what_if';requested_incident_ids:string[];verified_vehicle_detours:number;status:'verified_detour'|'partially_verified_detour'|'no_matching_incidents'|'no_verified_detour';avoided_incident_ids?:string[];remaining_incident_ids?:string[];selection_scope?:string;vehicles:Array<{vehicle_id:string;incident_ids:string[];avoided_ids:string[];still_near_ids:string[];verified:boolean;provider_checks:number;reason:string;extra_km:number;extra_base_minutes:number}>;comparison:{B_km:number;C_km:number;B_base_min:number;C_base_min:number};disclaimer:string};

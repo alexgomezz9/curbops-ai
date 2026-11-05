@@ -43,9 +43,13 @@ def test_preventative_avoids_only_provider_checked_geometry():
     calls=[]
     async def provider(points):
         calls.append(points)
-        # Mock street provider makes a viable route exactly when given a waypoint
+        # Mock provider returns a street polyline around the incident, visiting
+        # every required stop. A geometry omitting the delivery is NOT valid.
         if len(points)>3:
-            return [points[0],points[1],points[-1]],4.0,12
+            stop=DELIVERIES[3].location
+            north_depot=(DEPOT[0],DEPOT[1]+.005)
+            north_stop=(stop[0],stop[1]+.005)
+            return [DEPOT,north_depot,north_stop,stop,north_stop,north_depot,DEPOT],4.0,12
         return [points[0],POINT,points[-1]],3.0,10
     result=asyncio.run(prepare_precautionary_plan(demo,provider,incident_ids=['SIM-ROADWORKS']))
     assert result['verified_vehicle_detours']==1
@@ -85,3 +89,29 @@ def test_avoid_endpoint_requires_computed_B():
     assert result.status_code==409
     assert 'Generate B' in result.text
     store.reset()
+
+
+def test_multiple_risks_can_yield_partial_verified_detour():
+    """A credible one-zone bypass is useful even if a second zone is unavoidable."""
+    demo=fake_store()
+    required_stop=DELIVERIES[3].location
+    second=Incident(id='SIM-AT-STOP',title='Synthetic obstruction at mandatory delivery',
+        location=required_stop,kind='roadworks',severity='medium',radius_m=60,
+        detail='test',provenance=DataProvenance(origin='synthetic',label='test'))
+    demo.incidents.append(second)
+    async def provider(points):
+        if len(points)>3:
+            # Reproduce a provider-supplied detour around SIM-ROADWORKS but
+            # preserve the mandatory stop in the other risk buffer.
+            north_depot=(DEPOT[0],DEPOT[1]+.005)
+            north_stop=(required_stop[0],required_stop[1]+.005)
+            return [DEPOT,north_depot,north_stop,required_stop,north_stop,north_depot,DEPOT],4.0,12
+        return [points[0],POINT,required_stop,points[-1]],3.0,10
+    candidate,proof=asyncio.run(_shape_one_route(demo.no_risk_plan.routes[0],
+        [obstacle(),second],provider))
+    assert proof['verified']
+    assert proof['avoided_ids']==['SIM-ROADWORKS']
+    assert proof['still_near_ids']==['SIM-AT-STOP']
+    assert len(proof['zone_attempts'])==2
+    assert not corridor_hit(candidate.coordinates,obstacle())
+    assert corridor_hit(candidate.coordinates,second)

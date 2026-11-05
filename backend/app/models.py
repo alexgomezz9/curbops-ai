@@ -164,7 +164,7 @@ class AgentTrace(BaseModel):
 
 class MapAction(BaseModel):
     """Allowlisted UI instruction only; never dispatches vehicles or fetches URLs."""
-    type: Literal['select_vehicle','select_scenario','select_incident','show_comparison','open_map','fit_routes','show_traffic','highlight_route_incidents','highlight_route_sensors']
+    type: Literal['select_vehicle','select_scenario','select_incident','show_comparison','open_map','fit_routes','show_traffic','highlight_route_incidents','highlight_route_sensors','highlight_avoidance_results']
     value: str | None = None
     plan_id: str | None = None
     generation: int | None = None
