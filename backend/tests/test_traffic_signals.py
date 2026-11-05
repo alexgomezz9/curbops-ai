@@ -48,8 +48,12 @@ def test_refresh_integrates_real_only_sensors(monkeypatch):
     import app.main as main_mod
     from app.models import Incident,DataProvenance,LoadingZone,Camera,SourceMode
     from datetime import datetime,timezone
+    from types import SimpleNamespace
+    clock = [0.0]
+    fetched = []
     provenance=DataProvenance(origin='municipal_open_data',label='test official fixture')
     async def fake_fetch(kind):
+        fetched.append(kind)
         if kind=='traffic':
             return ([TrafficSensor(id='m-123',location=(-3.70,40.42),service_level=3,intensity_vph=850)],1,'2026-11-03T20:00:00')
         if kind=='incidents':
@@ -57,16 +61,23 @@ def test_refresh_integrates_real_only_sensors(monkeypatch):
         if kind=='cameras':
             return [Camera(id='m-c',label='Camera',location=(-3.7,40.42),provenance=provenance)]
         return [LoadingZone(id='m-z',label='Loading reserve',location=(-3.7,40.42),district='Madrid',provenance=provenance)]
-    saved={key:getattr(store,key) for key in ['traffic_points','traffic_total_valid','traffic_fetched_at','traffic_observed_at','override_incidents','override_cameras','override_zones','source_mode','live_last_fetch','live_errors']}
+    saved={key:getattr(store,key) for key in ['traffic_points','traffic_total_valid','traffic_fetched_at','traffic_observed_at','previous_traffic_points','previous_traffic_fetched_at','traffic_source_error','override_incidents','override_cameras','override_zones','source_mode','live_last_fetch','live_errors']}
     old_refresh=main_mod._last_refresh
     try:
         monkeypatch.setattr(main_mod,'fetch_source',fake_fetch)
-        main_mod._last_refresh=0.0
+        monkeypatch.setattr(main_mod,'time',SimpleNamespace(monotonic=lambda:clock[0]))
+        main_mod._last_refresh=None
         client=TestClient(app)
         response=client.post('/api/sources/refresh')
         assert response.status_code==200
         assert set(response.json()['results'])=={'traffic','incidents','cameras','loading'}
         assert all(x['ok'] for x in response.json()['results'].values())
+        assert len(fetched)==4
+        assert client.post('/api/sources/refresh').status_code==429
+        assert len(fetched)==4
+        clock[0] += main_mod.settings.source_refresh_min_seconds
+        assert client.post('/api/sources/refresh').status_code==200
+        assert len(fetched)==8
         assert client.post('/api/mode',json={'mode':'live'}).status_code==200
         assert client.get('/api/signals').json()['points'][0]['id']=='m-123'
         assert client.get('/api/mission').json()['sources'][3]['connected'] is True

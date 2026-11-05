@@ -33,7 +33,7 @@ settings=get_settings()
 app=FastAPI(title='CurbOps AI API',version='0.1.0',description='A fictional dispatch scenario and opt-in Madrid Open Data ingestion.')
 app.add_middleware(CORSMiddleware,allow_origins=[x.strip() for x in settings.cors_origins.split(',')],
     allow_methods=['GET','POST'],allow_headers=['Content-Type'],allow_credentials=False)
-_last_refresh=0.0
+_last_refresh: float | None = None
 
 @app.get('/health')
 def health():return {'status':'ok','service':'CurbOps','mode':store.source_mode}
@@ -188,7 +188,7 @@ def update_mode(body:ModeUpdate):
 async def refresh_sources():
     global _last_refresh
     now=time.monotonic()
-    if now-_last_refresh<settings.source_refresh_min_seconds:
+    if _last_refresh is not None and now-_last_refresh<settings.source_refresh_min_seconds:
         raise HTTPException(status_code=429,detail=f'Cooldown: municipal sources can only be refreshed every {settings.source_refresh_min_seconds}s')
     _last_refresh=now
     status={}
