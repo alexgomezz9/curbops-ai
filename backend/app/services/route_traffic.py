@@ -36,6 +36,8 @@ def inspect_route_traffic(store:DemoStore,vehicle_id:str,scenario:str='C',radius
     return {'vehicle_id':vehicle_id,'scenario':scenario,'route_fidelity':'road_network',
             'sampled_nearby_count':len(rows),'showing':min(limit,len(rows)),
             'congested_nearby_count':sum(r['service_level']==3 for r in rows),
+            'service_level_counts':{str(level):sum(r['service_level']==level for r in rows) for level in range(4)},
+            'unknown_level_count':sum(r['service_level'] is None for r in rows),
             'observations':rows[:limit], 'observed_at':observed_at,'downloaded_at':fetched_at,
             'previous_snapshot_available':bool(previous_at),
             'congestion_duration_minutes':None,

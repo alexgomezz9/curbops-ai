@@ -29,7 +29,7 @@ def fleet_impact(store: DemoStore, scenario: str = 'C', *, radius_m: int = 200) 
     rows = []
     for vehicle_id in vehicles:
         corridor = vehicle_corridor(store, vehicle_id, scenario)
-        measurements = (inspect_route_traffic(store, vehicle_id, scenario, radius_m, limit=10)
+        measurements = (inspect_route_traffic(store, vehicle_id, scenario, radius_m, limit=100)
                         if has_observations else None)
         notices = corridor['nearby_incidents']
         congested = [o for o in (measurements or {}).get('observations', [])
@@ -44,18 +44,21 @@ def fleet_impact(store: DemoStore, scenario: str = 'C', *, radius_m: int = 200) 
             'congested_sensor_points_nearby': (measurements or {}).get('congested_nearby_count', 0),
             'displayed_congested_sensor_count': len(congested),
             'congested_sensor_ids': [o['id'] for o in congested[:5]],
+            'sensor_service_levels': (measurements or {}).get('service_level_counts',{}),
+            'sensor_advisory_points': sum(int(level)*int(count) for level,count in (measurements or {}).get('service_level_counts',{}).items()),
             'measurements_available': measurements is not None,
         })
     rows.sort(key=lambda r: (
         -r['risk_penalties_applied'],
         -r['congested_sensor_points_nearby'],
+        -r['sensor_advisory_points'],
         -r['nearby_notices'], r['vehicle_id']))
     return {
         'scenario': scenario, 'vehicles': rows,
         'observed_at': sampled_at, 'downloaded_at': downloaded_at,
         'recommended_focus': rows[0]['vehicle_id'] if rows else None,
         'interpretation': ('Priority order is a screening heuristic, not a measured delay or optimized dispatch. '
-                           'A sensor near a route is not proof of congestion on its actual lanes. '
+                           'Sensor service-level advisory (0–3) is available for screening but NOT a route cost or ETA. A sensor near a route is not proof of congestion on its actual lanes. '
                            'Municipal notices include unknown or outside-window records. '
                            'No closures confirmed, historical trend or dynamic ETAs.'),
     }
