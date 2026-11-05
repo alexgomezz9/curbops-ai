@@ -13,6 +13,7 @@ node_modules/
 out/
 dist/
 coverage/
+*.tsbuildinfo
 *.log
 .DS_Store
 *.sqlite3
