@@ -50,12 +50,12 @@ function Comparison({base,current,comparable}:{base:MissionSnapshot['original_pl
 function PlanButtons({showProposal,hasProposal,onSelect}:{showProposal:boolean;hasProposal:boolean;onSelect:(v:boolean)=>void}){
   return <div className="v2PlanSwitch"><button className={!showProposal?'selected':''} onClick={()=>onSelect(false)}>Original</button><button className={showProposal?'selected':''} disabled={!hasProposal} onClick={()=>onSelect(true)}>Proposed</button></div>;
 }
-function MapCanvas({snapshot,plan,referencePlan,isolatedVehicle,onIsolateVehicle,layers,selectedIncident,onSelectIncident,selectedVehicle,onSelectVehicle,compare,theme,traffic,signalMode,cameraFocusId,onCloseCamera,sensorFocusId,routeFocusToken,comparisonUi,comparisonMix,highlightIncidentIds,avoidedIncidentIds,focusSensorIds,evidence,intelMode,changes}:{
+function MapCanvas({snapshot,plan,referencePlan,isolatedVehicle,onIsolateVehicle,layers,selectedIncident,onSelectIncident,selectedVehicle,onSelectVehicle,compare,theme,traffic,signalMode,cameraFocusId,onCloseCamera,sensorFocusId,onSelectSensor,routeFocusToken,comparisonUi,comparisonMix,highlightIncidentIds,avoidedIncidentIds,focusSensorIds,evidence,intelMode,changes}:{
   snapshot:MissionSnapshot;plan:MissionSnapshot['original_plan'];referencePlan?:DispatchPlan|null;isolatedVehicle?:boolean;onIsolateVehicle?:(id:string)=>void;layers:LayerSelection;
   selectedIncident:string|null;onSelectIncident:(id:string)=>void;selectedVehicle:string|null;
-  onSelectVehicle:(id:string|null)=>void;compare:boolean;theme:Theme;traffic?:CitySignals|null;signalMode?:boolean;cameraFocusId?:string|null;onCloseCamera?:()=>void;sensorFocusId?:string|null;routeFocusToken?:number;comparisonUi?:boolean;comparisonMix?:number;highlightIncidentIds?:string[];avoidedIncidentIds?:string[];focusSensorIds?:string[];evidence?:IncidentEvidence|null;intelMode?:boolean;changes?:CityChanges|null;
+  onSelectVehicle:(id:string|null)=>void;compare:boolean;theme:Theme;traffic?:CitySignals|null;signalMode?:boolean;cameraFocusId?:string|null;onCloseCamera?:()=>void;sensorFocusId?:string|null;onSelectSensor?:(id:string|null)=>void;routeFocusToken?:number;comparisonUi?:boolean;comparisonMix?:number;highlightIncidentIds?:string[];avoidedIncidentIds?:string[];focusSensorIds?:string[];evidence?:IncidentEvidence|null;intelMode?:boolean;changes?:CityChanges|null;
 }){
-  return <div className="v2Map"><MapPanel key={theme} theme={theme} snapshot={snapshot} activePlan={plan} referencePlan={referencePlan} isolatedVehicle={isolatedVehicle} onIsolateVehicle={onIsolateVehicle} layers={layers} selectedIncident={selectedIncident} onSelectIncident={onSelectIncident} selectedVehicle={selectedVehicle} onSelectVehicle={onSelectVehicle} compare={compare} traffic={traffic} signalMode={signalMode} cameraFocusId={cameraFocusId} onCloseCamera={onCloseCamera} sensorFocusId={sensorFocusId} routeFocusToken={routeFocusToken} comparisonUi={comparisonUi} comparisonMix={comparisonMix} highlightIncidentIds={highlightIncidentIds} avoidedIncidentIds={avoidedIncidentIds} focusSensorIds={focusSensorIds} evidence={evidence} intelMode={intelMode} changes={changes}/></div>;
+  return <div className="v2Map"><MapPanel key={theme} theme={theme} snapshot={snapshot} activePlan={plan} referencePlan={referencePlan} isolatedVehicle={isolatedVehicle} onIsolateVehicle={onIsolateVehicle} layers={layers} selectedIncident={selectedIncident} onSelectIncident={onSelectIncident} selectedVehicle={selectedVehicle} onSelectVehicle={onSelectVehicle} compare={compare} traffic={traffic} signalMode={signalMode} cameraFocusId={cameraFocusId} onCloseCamera={onCloseCamera} sensorFocusId={sensorFocusId} onSelectSensor={onSelectSensor} routeFocusToken={routeFocusToken} comparisonUi={comparisonUi} comparisonMix={comparisonMix} highlightIncidentIds={highlightIncidentIds} avoidedIncidentIds={avoidedIncidentIds} focusSensorIds={focusSensorIds} evidence={evidence} intelMode={intelMode} changes={changes}/></div>;
 }
 export default function Dashboard(){
   const [snapshot,setSnapshot]=useState<MissionSnapshot>(seeded);
@@ -115,6 +115,9 @@ export default function Dashboard(){
   const [notice,setNotice]=useState<string|null>(null);
   const [showSources,setShowSources]=useState(false);
   const [intelEvidence,setIntelEvidence]=useState<IncidentEvidence|null>(null);
+  const [mapEvidenceVisible,setMapEvidenceVisible]=useState(false);
+  const [detourSummaryVisible,setDetourSummaryVisible]=useState(false);
+  const evidenceRevision=useRef(0);
 
   const reload=useCallback(async()=>{
     try{
@@ -217,12 +220,14 @@ export default function Dashboard(){
       const targetVehicle=incidentId&&selectedVehicle?selectedVehicle:'ALL';
       const result=await api.precautionaryAvoidance(targetVehicle,incidentId?[incidentId]:undefined);
       setDirectAvoidance(result);
+      setDetourSummaryVisible(true);
       setNewProposalId(result.plan_id);
       await reload();
       setScenario('C');setComparisonPair('BC');setCompare(true);setComparisonMix(50);
+      setSelectedVehicle(null);setIsolatedVehicle(false);setSelectedIncident(null);
+      setHighlightIncidentIds(result.avoided_incident_ids||[]);
+      setRouteFocusToken(x=>x+1);
       if(result.verified_vehicle_detours){
-        const selected=result.vehicles.find(row=>row.verified);
-        if(selected){setSelectedVehicle(selected.vehicle_id);setHighlightIncidentIds(selected.avoided_ids);}
         setNotice(`${result.verified_vehicle_detours} road-verified preventative detour(s). Hypothetical risk zones only.`);
       }else{setNotice('No provider-verified avoidance within detour limits. The plan has not fabricated a bypass.');}
       setView('map');
@@ -240,6 +245,7 @@ export default function Dashboard(){
   function onAgentEvent(event:AgentEvent){
     setAgentEvents(old=>[...old,event]);
     if(event.type==='model.call_started')setAgentPhase('The model is selecting a tool');
+    if(event.type==='workflow.node_completed'&&event.node){setAgentPhase(`Fleet review: ${event.node.replaceAll('_',' ')}`);setAgentToolHistory(old=>[...old,`✓ ${event.node!.replaceAll('_',' ')}`].slice(-8));}
     if(event.type==='tool.started'){
       const name=event.tool?.replaceAll('_',' ')||'tool';
       setAgentPhase(`Running: ${name}…`);
@@ -252,7 +258,11 @@ export default function Dashboard(){
     if(event.type==='session.failed')setAgentPhase(`The provider did not finish: ${event.reason||'error'}`);
     if(event.type==='routing.route_completed')setAgentPhase(`Routing street plans ${event.completed||0}/${event.total||9}`);
     if(event.type==='avoidance.route_started')setAgentPhase(`Checking alternative roads for ${event.vehicle_id||'fleet'}…`);
-    if(event.type==='avoidance.route_completed')setAgentPhase(`Checked ${event.vehicle_id||'fleet'} · geometry verification complete`);
+    if(event.type==='avoidance.route_completed'){
+      setAgentPhase(`${event.vehicle_id||'Fleet'} · ${event.verified?'road detour verified':'no verified bypass found'}`);
+      // This is progress telemetry, not a map-selection instruction.
+      // In particular, the last completed van must not hijack a whole-fleet request.
+    }
     if(event.type==='map.action'&&event.action){
       streamedActionCount.current+=1;
       const action=event.action;
@@ -271,23 +281,29 @@ export default function Dashboard(){
     }
   }
   function describeMapAction(action:AgentMapAction){
-    const labels:Record<string,string>={select_vehicle:`Vehicle ${action.value} focused`,select_incident:`Notice ${action.value} focused`,select_scenario:`Scenario ${action.value} selected`,show_comparison:`Comparison ${action.value} active`,show_traffic:'Municipal sensors shown',fit_routes:'Full fleet view',open_map:'Map opened',highlight_route_incidents:`Nearby notices along ${action.value?.split(':')[0]} · inspecting geometry`,highlight_route_sensors:`Nearby sensors along ${action.value?.split(':')[0]} · inspecting readings`};
+    const labels:Record<string,string>={select_vehicle:`Vehicle ${action.value} focused`,select_incident:`Notice ${action.value} focused`,select_scenario:`Scenario ${action.value} selected`,show_comparison:`Comparison ${action.value} active`,show_traffic:'Municipal sensors shown',fit_routes:'Full fleet view',open_map:'Map opened',highlight_route_incidents:`Nearby notices along ${action.value?.split(':')[0]} · inspecting geometry`,highlight_route_sensors:`Nearby sensors along ${action.value?.split(':')[0]} · inspecting readings`,highlight_avoidance_results:`Verified zone bypass · ${action.value}`};
     return labels[action.type]||action.type;
   }
   async function runAgent(message?:string){
     const text=(message||prompt).trim();if(!text)return;
+    const fleetWide=/(\bfleet\b|\b(?:all|entire|whole)\s+(?:three\s+|3\s+)?(?:fleet|vehicles|vans|routes)\b|\b(?:every|each)\s+(?:van|vehicle|route)\b|toda la flota|todos los veh[ií]culos)/i.test(text);
     if(!backendUp)return setNotice('Backend unavailable. Start Docker Compose first.');
     if(busy)return;
     const previousPlanId=proposed?.id;
     setChatTurns(old=>[...old,{id:++chatSequence.current,role:'user',content:text}]);
-    setPrompt(''); // A sent message must not remain in the composer, even on LLM failure.
-    setNewProposalId(null);setDirectAvoidance(null);
+    setPrompt(''); // Sent input is no longer part of the composer.
+    setNewProposalId(null);setDirectAvoidance(null);setDetourSummaryVisible(false);
+    ++evidenceRevision.current; // Cancel results of older asynchronous corridor reads.
+    setMapEvidenceVisible(false);setCorridorContext(null);setRouteRiskDifference(null);
+    setHighlightIncidentIds([]);setFocusSensorIds([]);
+    if(fleetWide){setSelectedVehicle(null);selectedVehicleRef.current=null;setSelectedIncident(null);setIsolatedVehicle(false);setRouteFocusToken(x=>x+1);}
     setBusy('agent');streamedActionCount.current=0;setAgentResult(null);setAgentEvents([]);setAgentMapSteps([]);setAgentToolHistory([]);setAgentPhase('Starting investigation…');setMapAgentOpen(true);
     try{
       const result=await api.agentStream(text,modelTier,onAgentEvent,
         chatTurns.slice(-10).map(t=>({role:t.role,content:t.content.slice(0,1800)})),
-        {scenario,selected_vehicle:selectedVehicle,selected_incident:selectedIncident});
+        {scenario,selected_vehicle:fleetWide?null:selectedVehicle,selected_incident:fleetWide?null:selectedIncident});
       setAgentResult(result);
+      setDetourSummaryVisible(result.mode!=='agent_error'&&result.traces.some(t=>t.tool==='prepare_precautionary_avoidance'));
       setChatTurns(old=>[...old,{id:++chatSequence.current,role:'assistant',content:result.summary,mode:result.mode}]);
       if(result.mode==='agent_error'){setAgentPhase('Execution incomplete; inspect the tool trace');setNotice(result.summary);}
       await mapActionQueue.current;
@@ -300,6 +316,15 @@ export default function Dashboard(){
         const valid=(result.map_actions||[]).filter(action=>(action.generation===null||action.generation===nextBundle.generation)&&
           (action.plan_id===null||action.plan_id===nextBundle.plan_id));
         if(valid.length)applyMapActions(valid,mission,nextBundle);
+      }
+      // Final view scope follows the operator's request, not the last tool's
+      // progress event or a previous selected vehicle/incident.
+      if(fleetWide&&result.mode!=='agent_error'&&result.traces.some(t=>t.tool==='prepare_precautionary_avoidance')){
+        setSelectedVehicle(null);selectedVehicleRef.current=null;setIsolatedVehicle(false);
+        setSelectedIncident(null);setCorridorContext(null);setRouteRiskDifference(null);
+        setFocusSensorIds([]);setHighlightIncidentIds(nextBundle.precautionary_avoidance?.avoided_incident_ids||[]);
+        setScenario('C');setComparisonPair('BC');setCompare(Boolean(nextBundle.B));setComparisonMix(50);
+        setRouteFocusToken(x=>x+1);
       }
       if(result.mode!=='agent_error')setAgentPhase('Investigation complete · full trace available in AI Agent');
     }catch(error){setAgentPhase('Execution error');setNotice(String(error));setChatTurns(old=>[...old,{id:++chatSequence.current,role:'assistant',content:`Investigation did not finish: ${String(error)}`,mode:'agent_error'}]);}finally{setBusy(null);}
@@ -314,12 +339,31 @@ export default function Dashboard(){
         setSelectedVehicle(action.value);setInspectorVisible(true);setIsolatedVehicle(false);open=true;
       }
       if(action.type==='select_incident'&&mission.incidents.some(i=>i.id===action.value)){
-        setCorridorContext(null);
+        ++evidenceRevision.current;
+        setCorridorContext(null);setRouteRiskDifference(null);setFocusSensorIds([]);
+        setSelectedVehicle(null);selectedVehicleRef.current=null;setIsolatedVehicle(false);
         setSelectedIncident(action.value);setHighlightIncidentIds([action.value!]);open=true;
       }
       if(action.type==='select_scenario'&&['A','B','C'].includes(action.value||'')&&
         (action.value==='A'||(action.value==='B'&&bundle.B)||(action.value==='C'&&bundle.C))){
         chooseScenario(action.value as ScenarioId);open=true;
+      }
+      if(action.type==='highlight_avoidance_results'){
+        const outcome=bundle.precautionary_avoidance;
+        if(outcome&&outcome.verified_vehicle_detours>0){
+          const fleetWide=action.value==='ALL';
+          const targets=fleetWide?outcome.vehicles:outcome.vehicles.filter(v=>v.vehicle_id===action.value);
+          if(targets.some(v=>v.verified)){
+            setSelectedVehicle(fleetWide?null:targets[0].vehicle_id);
+            selectedVehicleRef.current=fleetWide?null:targets[0].vehicle_id;
+            setSelectedIncident(null);setIsolatedVehicle(false);
+            setComparisonPair('BC');setCompare(Boolean(bundle.B));setComparisonMix(50);
+            setScenario('C');setLayers(prev=>({...prev,incidents:false,traffic:false}));
+            setHighlightIncidentIds([...new Set(targets.flatMap(v=>[...v.avoided_ids,...v.still_near_ids]))]);
+            if(fleetWide)setRouteFocusToken(x=>x+1);
+            open=true;
+          }
+        }
       }
       if(action.type==='show_comparison'&&['AB','BC','AC'].includes(action.value||'')){
         const pair=action.value as ComparisonId;
@@ -334,14 +378,15 @@ export default function Dashboard(){
         setSelectedVehicle(vehicle);setSelectedIncident(null);setIsolatedVehicle(false);setFocusSensorIds([]);
         setScenario(scenarioName==='B'?'B':'C');
         if(scenarioName==='B')setCompare(false);
-        setLayers(prev=>({...prev,incidents:false}));open=true;
+        setLayers(prev=>({...prev,incidents:false,traffic:false}));open=true;
         // Read the SAME road-polyline inspection as the agent; not route.incidents_near,
         // which omits unknown or temporally inactive geographic context.
         setCorridorContext(null);setRouteRiskDifference(null);setHighlightIncidentIds([]);
+        const revision=++evidenceRevision.current;
         void Promise.all([api.vehicleCorridor(vehicle,scenarioName==='B'?'B':'C'),
           ...(bundle.B&&bundle.C?[api.vehicleCorridor(vehicle,'B'),api.vehicleCorridor(vehicle,'C')]:[])]).then(reports=>{
           const report=reports[0];
-          if(report.generation!==bundle.generation||report.plan_id!==bundle.plan_id)return;
+          if(revision!==evidenceRevision.current||report.generation!==bundle.generation||report.plan_id!==bundle.plan_id)return;
           setCorridorContext(report);
           if(reports.length===3){
             const onB=reports[1].nearby_incidents, onC=reports[2].nearby_incidents;
@@ -363,7 +408,7 @@ export default function Dashboard(){
         }).catch(()=>setNotice('Unable to locate sensors near the route.'));
       }
       if(action.type==='show_traffic'){setFocusSensorIds([]);setLayers(prev=>({...prev,traffic:true}));open=true;}
-      if(action.type==='fit_routes'){setCorridorContext(null);setRouteRiskDifference(null);setHighlightIncidentIds([]);setFocusSensorIds([]);setSelectedVehicle(null);setIsolatedVehicle(false);setRouteFocusToken(x=>x+1);open=true;}
+      if(action.type==='fit_routes'){++evidenceRevision.current;setCorridorContext(null);setRouteRiskDifference(null);setHighlightIncidentIds([]);setFocusSensorIds([]);setSelectedIncident(null);setSelectedVehicle(null);selectedVehicleRef.current=null;setIsolatedVehicle(false);setRouteFocusToken(x=>x+1);open=true;}
     }
     if(open && mapAgentAutoFollow)setView('map');
   }
@@ -400,6 +445,7 @@ export default function Dashboard(){
       const count=Object.values(result.results).filter(x=>x.ok).length;
       const [nextSignals,nextChanges]=await Promise.all([api.signals(),api.changes()]);
       setSignals(nextSignals);setChanges(nextChanges);
+      if(!silent&&nextSignals.points.length)setLayers(old=>({...old,traffic:true}));
       if(count){
         setSnapshot(silent?await api.mission():await api.mode('live'));
         const updated=await api.scenarios();setScenarioBundle(updated);
@@ -450,7 +496,7 @@ export default function Dashboard(){
         </nav>
         <span className="v5SidebarLabel v5NavSecondLabel">MISSION STATUS</span>
         <div className="v5SidebarStatus"><span className="v5SidebarPulse"/><div><strong>{snapshot.source_mode==='live'?'Municipal signals':'Scenario / Replay'}</strong><small>{snapshot.source_mode==='live'?'Real observations + simulated fleet':'Fictional vehicles and deliveries'}</small></div></div>
-        <div className="v5SidebarBottom"><button title="Collapse sidebar" className="v5Collapse" onClick={()=>setNavCollapsed(x=>!x)}>{navCollapsed?<PanelLeftOpen size={18}/>:<PanelLeftClose size={18}/>}<span>{navCollapsed?'':'Collapse sidebar'}</span></button><div className="v5SideFoot">v1.8 · MAP COPILOT<br/>MADRID / ES</div></div>
+        <div className="v5SidebarBottom"><button title="Collapse sidebar" className="v5Collapse" onClick={()=>setNavCollapsed(x=>!x)}>{navCollapsed?<PanelLeftOpen size={18}/>:<PanelLeftClose size={18}/>}<span>{navCollapsed?'':'Collapse sidebar'}</span></button><div className="v5SideFoot">v2.2 · MAP COPILOT<br/>MADRID / ES</div></div>
       </aside>
       <div className="v5ContentArea">
     <header className="v2Topbar">
@@ -466,7 +512,7 @@ export default function Dashboard(){
           <div className="v9LiveIcon"><Radio size={17}/></div>
           <div className="v9LiveDescription"><strong>Madrid Urban Pulse</strong><span>{cityState}{fetchAgeMinutes!==null?` · downloaded ${fetchAgeMinutes} min ago`:''} · municipal data, not live fleet tracking</span></div>
           <div className="v9LiveCounts"><strong>{signals?.status==='municipal_open_data'?signals.total_valid.toLocaleString('en-GB'):'—'}<small> sensors</small></strong><strong>{snapshot.incidents.filter(x=>x.provenance.origin==='municipal_open_data').length}<small> official events</small></strong></div>
-          <button onClick={()=>setView('signals')}>Explore live signals <ArrowRight size={14}/></button>
+          <button disabled={sourceBusy||busy!==null||!backendUp} onClick={()=>signals?.status==='municipal_open_data'?setView('signals'):void syncSources()}>{sourceBusy?<LoaderCircle className="v2Spin" size={14}/>:<RefreshCw size={14}/>} {signals?.status==='municipal_open_data'?'Explore readings':'Fetch Madrid data'}</button>
         </div>
         <div className="v2OverviewGrid"><section className="v2Panel v2OverviewMap"><div className="v2PanelHeading"><div><span className="v2Eyebrow">LIVE WORKSPACE</span><h2>Madrid operations</h2></div><button className="v2TextLink" onClick={()=>setView('map')}>Expand map <ArrowRight size={16}/></button></div><MapCanvas snapshot={snapshot} plan={current} layers={layers} selectedIncident={selectedIncident} onSelectIncident={setSelectedIncident} selectedVehicle={selectedVehicle} onSelectVehicle={setSelectedVehicle} compare={compare} theme={theme} traffic={signals}/></section>
           <aside className="v2OverviewSide"><section className="v2Spotlight"><span className="v2Eyebrow"><Sparkles size={13}/> NEXT ACTION</span><h2>One decision, all the context.</h2><p>Run a disruption analysis for your fictional fleet. The agent can inspect incidents, call tools and propose a new plan.</p><button className="v2Primary" onClick={()=>{setView('agent');void runAgent(SUGGESTIONS[0]);}} disabled={busy!==null}><BrainCircuit size={17}/> {busy==='agent'?'Running...':'Run AI investigation'} <ArrowRight size={17}/></button><div className="v2SmallPrint">Needs API connection. LLM key optional; offline deterministic workflow clearly labelled.</div></section>
@@ -476,7 +522,7 @@ export default function Dashboard(){
         <div className={`v17Workspace ${mapExpanded?'v17Focus':''}`} role="region" aria-label="Madrid AI Map Workspace">
           <section className="v17MapColumn" aria-label="Mapa operativo de Madrid">
             <header className="v17MapHeader">
-              <div className="v17MapIdentity"><span className="v17LiveDot"/><div><strong>Madrid · Operations Map</strong><small>Simulated fleet and deliveries · {snapshot.source_mode==='live'?'municipal observations':'demo data'}</small></div></div>
+              <div className="v17MapIdentity"><span className="v17LiveDot"/><div><strong>Madrid · Operations Map</strong><small>Simulated fleet and deliveries · {snapshot.source_mode==='live'?'municipal observations':'municipal data optional'}</small></div></div>
               <div className="v17MapActions">
                 <div className="v18FleetColors" title="Vehicle route colors"><span><i className="v18V1"/> V-01</span><span><i className="v18V2"/> V-02</span><span><i className="v18V3"/> V-03</span></div>
                 <div className="v17ScenarioSwitch" role="group" aria-label="Route scenarios">
@@ -496,10 +542,13 @@ export default function Dashboard(){
               <span>{referenceScenario}</span><input type="range" min="0" max="100" value={comparisonMix} aria-label="Route comparison visibility" onChange={e=>setComparisonMix(Number(e.target.value))}/><span>{activeScenario}</span>
               <button onClick={()=>setComparisonMix(0)} className={comparisonMix===0?'active':''}>Reference</button><button onClick={()=>setComparisonMix(50)} className={comparisonMix===50?'active':''}>Both</button><button onClick={()=>setComparisonMix(100)} className={comparisonMix===100?'active':''}>Proposal</button>
             </div>}
-            <div className="v17MapViewport"><MapCanvas snapshot={snapshot} plan={mapPlan} referencePlan={referencePlan} isolatedVehicle={isolatedVehicle} onIsolateVehicle={id=>{setSelectedVehicle(id);setIsolatedVehicle(true);setInspectorVisible(true);}} layers={layers} selectedIncident={selectedIncident} onSelectIncident={setSelectedIncident} selectedVehicle={selectedVehicle} onSelectVehicle={id=>{setSelectedVehicle(id);setCorridorContext(null);setRouteRiskDifference(null);setHighlightIncidentIds([]);}} compare={compare} theme={theme} traffic={signals} routeFocusToken={routeFocusToken} comparisonMix={comparisonMix} highlightIncidentIds={highlightIncidentIds} avoidedIncidentIds={routeRiskDifference?.avoided.map(i=>i.id)||[]} focusSensorIds={focusSensorIds} comparisonUi/>{!baselineReady&&<div className="v17InitialRoutes"><Route size={21}/><strong>Initial street routes not loaded</strong><p>The fleet is fictional. Load street routes to explore the scenario before creating a proposal.</p><button disabled={busy!==null||!roadAvailable} onClick={()=>void loadOriginalRoads()}>{roadAvailable?'Load original routes': 'Configure OSRM/ORS to route'}</button></div>}</div>
+            <div className="v17MapViewport">{busy==='agent'&&<div className="v21LiveAction" role="status"><LoaderCircle size={14} className="v2Spin"/><span>{agentPhase}</span></div>}<MapCanvas snapshot={snapshot} plan={mapPlan} referencePlan={referencePlan} isolatedVehicle={isolatedVehicle} onIsolateVehicle={id=>{setSelectedVehicle(id);setIsolatedVehicle(true);setInspectorVisible(true);}} layers={layers} selectedIncident={selectedIncident} onSelectIncident={setSelectedIncident} selectedVehicle={selectedVehicle} onSelectVehicle={id=>{setSelectedVehicle(id);setCorridorContext(null);setRouteRiskDifference(null);setHighlightIncidentIds([]);}} compare={compare} theme={theme} traffic={signals} sensorFocusId={sensorFocusId} onSelectSensor={setSensorFocusId} routeFocusToken={routeFocusToken} comparisonMix={comparisonMix} highlightIncidentIds={highlightIncidentIds} avoidedIncidentIds={[...(routeRiskDifference?.avoided.map(i=>i.id)||[]),...(scenarioBundle?.precautionary_avoidance?.avoided_incident_ids||[])]} focusSensorIds={focusSensorIds} comparisonUi={baselineReady}/>{!baselineReady&&<div className="v17InitialRoutes"><Route size={21}/><strong>Initial street routes not loaded</strong><p>The fleet is fictional. Load street routes to explore the scenario before creating a proposal.</p><button disabled={busy!==null||!roadAvailable} onClick={()=>void loadOriginalRoads()}>{roadAvailable?'Load original routes': 'Configure OSRM/ORS to route'}</button></div>}</div>
             <footer className="v17MapFoot">
-              <span>{roadReady?`${activeScenario}: ${number(mapPlan.metrics.distance_km)} km · ${number(mapPlan.metrics.travel_minutes)} min base`:'Street routes pending'} <small>· no live traffic {scenarioBundle?.plan_stale?'· Replan: incident inputs changed':''}{scenarioBundle?.precautionary_avoidance?` · ${scenarioBundle.precautionary_avoidance.verified_vehicle_detours} provider-verified preventative detour(s)`:''}</small></span>
+              <span>{roadReady?`${activeScenario}: ${number(mapPlan.metrics.distance_km)} km · ${number(mapPlan.metrics.travel_minutes)} min base`:'Street routes not loaded'} <small>· base road estimates · {signals?.status==='municipal_open_data'?`${signals.points.length} sensor points available (advisory only)`:'no current sensor cost model'} {scenarioBundle?.plan_stale?'· Replan: incident inputs changed':''}{scenarioBundle?.precautionary_avoidance?` · ${scenarioBundle.precautionary_avoidance.verified_vehicle_detours} provider-verified preventative detour(s)`:''}</small></span>
               <div className="v17FootRight">
+                <button className="v17ToolBtn v21SourceButton" disabled={sourceBusy||busy!==null||!backendUp} onClick={()=>void syncSources()} title="Fetch the latest permitted Madrid municipal notices, cameras and traffic sensor snapshot">
+                  {sourceBusy?<LoaderCircle className="v2Spin" size={15}/>:<RefreshCw size={15}/>}<span>{sourceBusy?'Loading…':signals?.status==='municipal_open_data'?`Update data · ${signals.points.length} sensors`:'Load city data'}</span>
+                </button>
                 {selectedVehicle&&<button onClick={()=>{setSelectedVehicle(null);setIsolatedVehicle(false);setRouteFocusToken(x=>x+1);}}>Show full fleet</button>}
                 <details className="v17Layers"><summary><Layers3 size={14}/> Layers</summary><div>{([['incidents','Incidents'],['deliveries','Deliveries'],['loading','Loading'],['cameras','Cameras'],['traffic','Sensors']] as const).map(([key,title])=><label key={key}><input type="checkbox" checked={layers[key]} onChange={e=>setLayers(old=>({...old,[key]:e.target.checked}))}/>{title}</label>)}</div></details>
               </div>
@@ -508,13 +557,25 @@ export default function Dashboard(){
           <aside className="v17ChatColumn" aria-label="AI Map Copilot conversation">
             <header className="v17ChatHeader"><div className="v17ChatBrand"><BrainCircuit size={20}/><div><strong>AI Map Copilot</strong><small>{busy==='agent'?'Investigating · live tool actions':backendUp?'Connected · Madrid':'API disconnected'}</small></div></div><button onClick={()=>setView('agent')} title="Open complete tool trace"><Activity size={16}/><span>Trace</span></button></header>
             {!busy&&agentToolHistory.length>0&&<div className="v19ObservedTools"><Activity size={13}/><span>{agentToolHistory.filter(x=>x.startsWith('✓')).length} tools observed in last run</span><button onClick={()=>setView('agent')}>Inspect trace <ArrowRight size={12}/></button></div>}
+            {detourSummaryVisible&&scenarioBundle?.precautionary_avoidance&&<div className="v20DetourSummary" role="status">
+              <div><Route size={16}/><strong>{scenarioBundle.precautionary_avoidance.verified_vehicle_detours
+                ?`${scenarioBundle.precautionary_avoidance.verified_vehicle_detours} provider-verified detour(s)`
+                :'No verified detour found'}</strong>
+                <button className="v22DismissSummary" aria-label="Dismiss routing result" title="Dismiss" onClick={()=>setDetourSummaryVisible(false)}><X size={14}/></button></div>
+              <span>{scenarioBundle.precautionary_avoidance.verified_vehicle_detours
+                ?`B ${number(scenarioBundle.precautionary_avoidance.comparison.B_km)} km → C ${number(scenarioBundle.precautionary_avoidance.comparison.C_km)} km · ${scenarioBundle.precautionary_avoidance.avoided_incident_ids?.length||0} zones avoided`
+                :'The road provider returned no viable bypass within the configured limits. No route was changed.'}</span>
+              <div className="v22FleetOutcomes">{scenarioBundle.precautionary_avoidance.vehicles.map(item=><div key={item.vehicle_id}><strong>{item.vehicle_id}</strong><span>{item.verified?`✓ avoided ${item.avoided_ids.length} zone(s)`:(item.incident_ids.length?'No verified bypass':'No nearby selected zone')}</span></div>)}</div>
+              {scenarioBundle.precautionary_avoidance.verified_vehicle_detours>0&&<button onClick={()=>{setComparisonPair('BC');setCompare(true);setComparisonMix(50);setScenario('C');setView('map');}}>Show verified B/C changes <ArrowRight size={13}/></button>}
+            </div>}
             <div className="v17Conversation" ref={chatScrollRef} aria-live="polite">
               {!chatTurns.length&&<div className="v17Welcome"><Sparkles size={22}/><h2>Ask the map.</h2><p>Inspect routes, municipal events and sensors. The copilot uses tools and controls the map as it works.</p><div><button disabled={busy!==null} onClick={()=>void runAgent('Inspect all fleet street routes. Identify nearby notices and municipal sensors, focus the most relevant vehicle, and distinguish observed data from geographic proximity. Do not replan.')}>Inspect fleet risks <ArrowRight size={14}/></button><button disabled={busy!==null} onClick={()=>void runAgent('Inspect V-02 and highlight all nearby notices along C. Separate applied risks from geographic context; focus the vehicle and notices on the map.')}>Inspect V-02 <ArrowRight size={14}/></button></div></div>}
               {chatTurns.map(turn=><div key={turn.id} className={`v17ChatBubble ${turn.role==='user'?'fromOperator':'fromAgent'}`}><div className="v17BubbleLabel">{turn.role==='user'?'OPERATOR':turn.mode==='agent_error'?'AGENT · INCOMPLETE':turn.mode==='deterministic_demo'?'LOCAL ENGINE · NO LLM':'COPILOT'}</div>{turn.role==='assistant'?<BriefingMarkdown text={turn.content}/>:<p>{turn.content}</p>}</div>)}
               {busy==='agent'&&<div className="v17Working"><div className="v17WorkingTitle"><LoaderCircle className="v2Spin" size={16}/><strong>{agentPhase}</strong></div>{agentToolHistory.slice(-4).map((step,index)=><span key={index}>{step}</span>)}{agentMapSteps.slice(-4).map((step,index)=><span key={`map-${index}`}><Check size={12}/>{step}</span>)}<small>Observed tool events, not private model reasoning.</small></div>}
             </div>
             <div className="v17ComposerDock">
-              {(incident||corridorContext||routeRiskDifference||selectedVehicle||scenarioBundle?.plan_stale)&&<details className="v19ContextDrawer" aria-label="Selected map evidence"><summary><ScanSearch size={14}/> Map evidence <span>{selectedVehicle||incident?.id||'Current scenario'}</span><ChevronRight size={13}/></summary><div className="v19ContextContent">
+              {(incident||corridorContext||routeRiskDifference||selectedVehicle||scenarioBundle?.plan_stale)&&!mapEvidenceVisible&&<button className="v21ReopenEvidence" onClick={()=>setMapEvidenceVisible(true)}><ScanSearch size={14}/> Open map evidence <ChevronRight size={13}/></button>}
+              {(incident||corridorContext||routeRiskDifference||selectedVehicle||scenarioBundle?.plan_stale)&&mapEvidenceVisible&&<div className="v21EvidenceWrap"><button type="button" className="v21EvidenceClose" aria-label="Dismiss map evidence" onClick={()=>setMapEvidenceVisible(false)}><X size={14}/></button><details className="v19ContextDrawer" aria-label="Selected map evidence"><summary><ScanSearch size={14}/> Map evidence <span>{incident?.id||selectedVehicle||'Current scenario'}</span><ChevronRight size={13}/></summary><div className="v19ContextContent">
               {incident&&<div className="v17IncidentCard"><div><strong>{incident.provenance.origin==='synthetic'?'SIMULATED SCENARIO':'MUNICIPAL NOTICE'}</strong><button aria-label="Deselect incident" onClick={()=>setSelectedIncident(null)}><X size={14}/></button></div><h3>{incident.title}</h3><p>{incident.detail || 'No additional description published.'}</p><small>{incident.starts_at?`From: ${incident.starts_at}`:'Start time unverified'} · {incident.ends_at?`Until: ${incident.ends_at}`:'End time unverified'} · Not a confirmed closure</small><button className="v17IncidentAsk" disabled={busy!==null} onClick={()=>void runAgent(`Inspect incident ${incident.id}: which vehicles pass nearby, what municipal sensors or cameras exist, and whether its time window is supported by evidence. Focus it on the map. Do not replan.`)}>Investigate notice <ArrowRight size={13}/></button></div>}
               {corridorContext&&selectedVehicle===corridorContext.vehicle_id&&<div className="v17Evidence"><strong><ScanSearch size={15}/> Findings · {selectedVehicle}</strong><p>{corridorContext.nearby_count} nearby notices · {corridorContext.applied_count} applied in C</p>{corridorContext.nearby_incidents.slice(0,5).map(item=><button key={item.id} onClick={()=>{setSelectedIncident(item.id);setHighlightIncidentIds(corridorContext.nearby_incidents.map(i=>i.id));}}><span className={item.origin==='synthetic'?'synthetic':'municipal'}>{item.origin==='synthetic'?'S':'!'}</span><div><strong>{item.title}</strong><small>{item.applied_to_optimizer?'Used in C evaluation':item.temporal_status==='outside_window'?'Outside stated schedule':'Geographic context, not penalized'}</small></div></button>)}<small>Road proximity ≠ confirmed closure or measured delay.</small></div>}
               {routeRiskDifference&&routeRiskDifference.vehicle===selectedVehicle&&<div className="v17DeltaCard">
@@ -529,11 +590,11 @@ export default function Dashboard(){
   <button disabled={busy!==null||!roadAvailable} onClick={()=>scenarioBundle.plan_stale?void roadRoutes():void runRehearsal(Boolean(rehearsal))}>{scenarioBundle.plan_stale?'Replan with updated notices':rehearsal?'Remove simulation':'Test simulated incident'}</button>
 </div>}
 {selectedVehicle&&inspectorVisible&&<details className="v17RouteDetails"><summary><Route size={15}/> {selectedVehicle} · route details</summary><RouteDecisionInspector vehicleId={selectedVehicle} scenario={scenario} planId={scenarioBundle?.plan_id||null} onClose={()=>setInspectorVisible(false)} onVehicle={setSelectedVehicle} onIncident={id=>{setSelectedIncident(id);setHighlightIncidentIds([id]);}} onAll={()=>{setSelectedVehicle(null);setIsolatedVehicle(false);setRouteFocusToken(x=>x+1);}}/></details>}
-              </div></details>}
-              <div className="v17QuickPrompts"><button disabled={busy!==null} onClick={()=>void runAgent('Inspect the full fleet on street routes, check nearby municipal notices and traffic sensors, then focus the vehicle with the most evidence. Do not replan.')}>Inspect fleet</button><button disabled={busy!==null} onClick={()=>void runAgent('Inspect municipal sensors near V-01, highlight them on the map, and report source timestamps and measured values.')}>V-01 sensors</button><button disabled={busy!==null||!roadAvailable} onClick={()=>void runAgent('Recalculate the A/B/C street plans, compare B versus C on the map and explain their actual differences. Do not claim route avoidance if identical.')}>Recalculate routes</button><button disabled={busy!==null||!roadAvailable} onClick={()=>void runAgent('Investigate municipal incidents along ALL fleet routes, then use prepare_precautionary_avoidance to request actual road-provider bypasses around these potential risk zones. Show B vs C on the map. Report verified detours and failures. No confirmed closures are assumed.')}>Avoid risks (AI)</button></div>
+              </div></details></div>}
+              <div className="v17QuickPrompts"><button disabled={busy!==null} onClick={()=>void runAgent('Inspect the whole fleet using municipal notices and nearby sensors. Focus the most relevant vehicle and show the evidence on the map. Do not replan.')}>Analyze fleet</button><button disabled={busy!==null||!roadAvailable} onClick={()=>void runAgent('Find safer alternative street routes for the whole fleet around nearby roadworks and potential disruption zones. Compare B with C on the map, verify any bypass with the road provider, and explain the trade-offs and unresolved risks.')}>Find safer routes</button></div>
               <form onSubmit={e=>{e.preventDefault();void runAgent();}} className="v17ChatForm"><textarea aria-label="Message the copilot" rows={2} maxLength={1200} placeholder="Ask about Madrid routes, incidents, sensors, or preventative alternatives…" value={prompt} onChange={e=>setPrompt(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();void runAgent();}}}/><button disabled={busy!==null||!prompt.trim()} aria-label="Send message">{busy==='agent'?<LoaderCircle className="v2Spin" size={18}/>:<Send size={18}/>}</button></form>
-              <div className="v17ComposerMeta"><span>{backendUp?'Optional municipal data · simulated vehicles':'Backend offline'} </span><button onClick={()=>setView('agent')}>View execution trace <ArrowRight size={12}/></button></div>
-              <details className="v17MoreControls"><summary>Demo controls</summary><div>{!baselineReady&&<button disabled={busy!==null||!roadAvailable} onClick={()=>void loadOriginalRoads()}>Load original road routes</button>}<button disabled={busy!==null||!roadAvailable} onClick={()=>void roadRoutes()}>Recalculate with road engine (no LLM)</button><button disabled={busy!==null||!roadAvailable} onClick={()=>void avoidHazards()}>Verify preventative bypasses (routing engine)</button><button disabled={busy!==null} onClick={()=>void syncSources()}>Refresh city sources</button>{scenarioBundle?.B&&<button disabled={busy!==null} onClick={()=>void runRehearsal(Boolean(rehearsal))}>{rehearsal?'Remove simulated obstacle':selectedIncident?'Treat selected notice as hypothetical obstacle':'Simulate roadworks on B'}</button>}<button disabled={busy!==null} onClick={()=>void reset()}>Reset demo</button></div></details>
+              <div className="v17ComposerMeta"><span>{backendUp?'Madrid municipal data and simulated fleet':'Backend offline'} </span><button onClick={()=>setView('agent')}>View execution trace <ArrowRight size={12}/></button></div>
+              <details className="v17MoreControls"><summary>Advanced actions</summary><div>{!baselineReady&&<button disabled={busy!==null||!roadAvailable} onClick={()=>void loadOriginalRoads()}>Load original road routes</button>}<button disabled={busy!==null||!roadAvailable} onClick={()=>void roadRoutes()}>Recalculate with road engine (no LLM)</button><button disabled={busy!==null||!roadAvailable} onClick={()=>void avoidHazards()}>Verify preventative bypasses (routing engine)</button><button disabled={busy!==null} onClick={()=>void syncSources()}>Refresh city sources</button>{scenarioBundle?.B&&<button disabled={busy!==null} onClick={()=>void runRehearsal(Boolean(rehearsal))}>{rehearsal?'Remove simulated obstacle':selectedIncident?'Treat selected notice as hypothetical obstacle':'Simulate roadworks on B'}</button>}<button disabled={busy!==null} onClick={()=>void reset()}>Reset scenario</button></div></details>
             </div>
           </aside>
         </div>
@@ -550,7 +611,7 @@ export default function Dashboard(){
       {view==='cameras'&&<CameraHub mission={snapshot} focusId={cameraFocusId} onFocus={setCameraFocusId} onClose={()=>setCameraFocusId(null)} onRefresh={()=>void syncSources()} refreshing={sourceBusy} map={<MapCanvas snapshot={snapshot} plan={current} layers={{incidents:false,deliveries:false,loading:false,cameras:true,traffic:false}} selectedIncident={null} onSelectIncident={()=>{}} selectedVehicle={null} onSelectVehicle={()=>{}} compare={false} theme={theme} cameraFocusId={cameraFocusId} onCloseCamera={()=>setCameraFocusId(null)} signalMode/>}/>}
       {view==='signals'&&<CitySignalsPage signals={signals} changes={changes} autoRefresh={autoCityRefresh} onAutoRefresh={setAutoCityRefresh} mission={snapshot} loading={sourceBusy} refresh={()=>void syncSources()} onMap={()=>setView('map')} report={refreshReport} onCameraFocus={setCameraFocusId} onCameras={()=>{setCameraFocusId(null);setView('cameras');}} onSensorFocus={setSensorFocusId} map={<MapCanvas snapshot={snapshot} plan={current} layers={{incidents:false,deliveries:false,loading:false,cameras:true,traffic:true}} cameraFocusId={cameraFocusId} onCloseCamera={()=>setCameraFocusId(null)} sensorFocusId={sensorFocusId} selectedIncident={selectedIncident} onSelectIncident={setSelectedIncident} selectedVehicle={null} onSelectVehicle={()=>{}} compare={false} theme={theme} traffic={signals} changes={changes} signalMode/>}/>}
     </main>
-    <footer className="v2Footer"><span>CURBOPS · RESEARCH PROTOTYPE · NOT LIVE DISPATCH</span><span>Fictional fleet · Indicative routes · Madrid data © Ayuntamiento de Madrid</span></footer>
+    <footer className="v2Footer"><span>CurbOps AI · Urban operations</span><span>Simulated fleet · Municipal data © Ayuntamiento de Madrid where connected</span></footer>
     {notice&&<div className="v2Toast" role="status"><span>{notice}</span><button onClick={()=>setNotice(null)} aria-label="Dismiss"><X size={16}/></button></div>}
       </div>
     </div>

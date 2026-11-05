@@ -969,3 +969,85 @@
 @media(max-width:980px){.v17Workspace:not(.v17Focus){grid-template-columns:1fr}}
 .v19ObservedTools{flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:8px 14px;color:#b7d9df;background:#153646;border-bottom:1px solid #325566;font-size:11px}
 .v19ObservedTools span{flex:1}.v19ObservedTools button{display:flex;gap:4px;align-items:center;background:transparent;border:0;color:#8ce0c8;font-size:11px;font-weight:650;cursor:pointer}
+
+/* v2.0 — light, map-first portfolio presentation. Keep provenance and status
+   available in evidence and full trace, not as tiny overlays in the chat. */
+.v17Workspace{grid-template-columns:minmax(0,1fr) minmax(370px,425px);gap:12px}
+.v17ChatColumn{position:relative;background:#fff!important;color:#172a3c!important;border:1px solid #d7e0e9!important;box-shadow:0 10px 30px #2439540e;border-radius:15px}
+.v17ChatHeader{background:#fff!important;color:#152e42;border-bottom:1px solid #e5ebf0;padding:15px 18px;min-height:65px}
+.v17ChatBrand svg{color:#2563eb}.v17ChatBrand strong{font-size:15px;color:#142c3f;letter-spacing:-.025em}
+.v17ChatBrand small{color:#64758a!important;font-size:12px}
+.v17ChatHeader>button{background:#f5f7fa;color:#34475c;border:1px solid #dde4eb;font-size:12px;padding:9px 12px}
+.v19ObservedTools{background:#f5f9ff;color:#475b72;border-bottom:1px solid #e2e9f0;font-size:12px}
+.v19ObservedTools button{color:#2057b7;font-size:12px}
+.v17Conversation{background:#fff!important;padding:19px 17px!important;gap:18px;scrollbar-color:#bac6d3 transparent}
+.v17ChatBubble{font-size:14px;line-height:1.65;padding:13px 15px;border-radius:15px;max-width:98%}
+.v17ChatBubble.fromOperator{align-self:flex-end;background:#eef4fc!important;border:1px solid #d7e6f8;color:#1b3652!important;max-width:95%;border-bottom-right-radius:5px}
+.v17ChatBubble.fromOperator p{color:#1b3652!important}
+.v17ChatBubble.fromAgent{align-self:stretch;background:#fff!important;color:#202e3d!important;border:0!important;border-bottom:1px solid #e8edf1!important;border-radius:0!important;padding:7px 1px 15px;box-shadow:none}
+.v17ChatBubble.fromAgent .v7ReadableBriefing,.v17ChatBubble.fromAgent .v7ReadableBriefing p,.v17ChatBubble.fromAgent .v7ReadableBriefing strong,.v17ChatBubble.fromAgent .v7ReadableBriefing h4{color:#23384d!important;font-size:13.5px!important;line-height:1.7}
+.v17ChatBubble.fromAgent .v7ReadableBriefing li{color:#23384d!important;background:transparent!important;border:0!important;border-radius:0;font-size:13.5px;padding:4px 0 4px 17px;line-height:1.55}
+.v17ChatBubble.fromAgent .v7ReadableBriefing li:before{color:#3778d4!important}
+.v17ChatBubble.fromAgent .v7ReadableBriefing code{background:#f0f4fa;color:#22486f}
+.v17BubbleLabel{font-size:10px;color:#5f7185;letter-spacing:.075em}
+.v17Welcome{padding:20px 8px}.v17Welcome>svg{color:#2563eb}
+.v17Welcome h2{color:#172c43}.v17Welcome p{color:#5d7187;font-size:14px}
+.v17Welcome button{border-color:#d8e5f2;background:#f7fafe;color:#21518b;font-size:13px}
+.v17Working{background:#f1f7ff;border-color:#bad4f2;color:#254867;font-size:12px}
+.v17WorkingTitle,.v17WorkingTitle strong{color:#22486f!important}.v17Working>span{border-left-color:#5c98df}.v17Working>small{color:#607992;font-size:11px}
+.v17ComposerDock{background:#fff!important;border-top:1px solid #e4eaf0!important;padding:13px 15px 14px;gap:10px}
+.v17QuickPrompts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;overflow:visible;padding:0}
+.v17QuickPrompts button{font-size:12px;font-weight:700;white-space:normal;min-width:0;border-radius:9px;padding:10px 11px;background:#f4f7fb!important;border:1px solid #d9e4ef!important;color:#2b527c!important}
+.v17QuickPrompts button:hover{background:#e8f2ff!important;border-color:#86b3e6!important}
+.v17ChatForm{background:#fff!important;border:1px solid #c9d7e5!important;box-shadow:0 1px 7px #183b6610;border-radius:14px;padding:9px 10px}
+.v17ChatForm textarea{font-size:14px;min-height:62px;color:#1d3449!important}.v17ChatForm textarea::placeholder{color:#71849a!important}
+.v17ChatForm button{background:#2563eb!important;border-radius:10px}.v17ChatForm button:disabled{background:#a7b9cf!important}
+.v17ComposerMeta{color:#637992;font-size:11px}.v17ComposerMeta button{color:#2359a2;font-size:11px}
+.v19ContextDrawer{position:absolute;top:76px;right:13px;width:min(300px,calc(100% - 26px));z-index:28;max-height:calc(100% - 185px);background:#fff;color:#24394b;border-color:#d5e1eb;box-shadow:0 12px 32px #183d5925}
+.v19ContextDrawer>summary{font-size:12px;color:#24516e;background:#f8fbff;min-height:39px}
+.v19ContextDrawer>summary>span{color:#557088}
+.v19ContextContent{max-height:48vh;overflow:auto}
+.v19ContextContent>.v18ScenarioInsight{background:#f5f8fe;color:#29475f;border-color:#cddce8}
+.v19ContextContent>.v18ScenarioInsight strong{color:#203d57}.v19ContextContent>.v18ScenarioInsight p{color:#486176}
+.v20DetourSummary{padding:12px 16px;background:#f0f7ff;color:#1d3d60;border-bottom:1px solid #d2e4f7;display:grid;gap:6px;font-size:12px}
+.v20DetourSummary>div{display:flex;align-items:center;gap:7px;font-size:13px;color:#204f8b}
+.v20DetourSummary>span{line-height:1.45;color:#506980}
+.v20DetourSummary button{justify-self:start;background:#fff;color:#215a9c;border:1px solid #b8d4f2;border-radius:8px;padding:6px 9px;font-weight:700;font-size:12px;display:flex;gap:4px;align-items:center}
+.v17MapColumn{border-radius:15px}.v17MapHeader{background:#fff}
+.v17MapIdentity strong{font-size:15px}.v17MapIdentity small{font-size:11px}
+.v17MapFoot{font-size:12px}.v17CompareRail{background:#1e334a}
+.v17CompareRail button{font-size:12px}.v17CompareRail select{font-size:12px}
+@media(max-width:1260px){.v17Workspace{grid-template-columns:minmax(0,1fr) 365px}}
+@media(max-width:980px){.v17Workspace:not(.v17Focus){grid-template-columns:1fr}}
+
+/* v2.1 portfolio polish — evidence never covers the transcript or prompt */
+.v21SourceButton{white-space:nowrap;min-width:124px;gap:6px!important}
+.v21SourceButton:disabled{opacity:.55;cursor:wait}
+.v21EvidenceWrap{position:relative;flex:0 0 auto;min-width:0;max-height:220px}
+.v21EvidenceWrap .v19ContextDrawer{position:static!important;top:auto!important;right:auto!important;width:100%!important;max-height:205px!important;overflow:hidden;background:#f8fbff!important;box-shadow:none!important;border:1px solid #d8e5f0!important;border-radius:10px!important}
+.v21EvidenceWrap .v19ContextDrawer>summary{padding-right:38px!important;font-size:12.5px!important;min-height:40px}
+.v21EvidenceWrap .v19ContextContent{max-height:157px!important;overflow:auto}
+.v21EvidenceClose{position:absolute;z-index:2;right:8px;top:7px;width:27px;height:27px;display:flex;align-items:center;justify-content:center;border:1px solid #d2deeb;background:#fff;border-radius:8px;color:#4a6074;cursor:pointer}
+.v21EvidenceClose:hover{background:#edf5ff;color:#154b87}
+.v21ReopenEvidence{display:flex;align-items:center;justify-content:center;gap:7px;min-height:33px;border:1px solid #d9e5ef;background:#f7fafe;border-radius:9px;color:#355e8a;font-weight:650;font-size:12px;cursor:pointer}
+.v21ReopenEvidence svg:last-child{margin-left:auto}
+.v17ChatForm textarea:focus-visible{outline:none!important;box-shadow:none!important}
+.v17ChatForm:focus-within{border-color:#93b6e5!important;box-shadow:0 0 0 2px #8fb9ee28!important}
+.v17ChatHeader{flex-wrap:nowrap}
+.v17ChatBubble .v7ReadableBriefing{overflow-wrap:anywhere}
+.v17ChatBubble.fromAgent .v7ReadableBriefing ul{margin:7px 0!important}
+.v17ChatBubble.fromAgent .v7ReadableBriefing li{list-style:none!important}
+.v17MapIdentity small{line-height:1.4}
+@media(max-width:1350px){.v21SourceButton{min-width:0}.v21SourceButton span{font-size:11px}}
+.v21LiveAction{position:absolute;z-index:21;left:50%;top:14px;transform:translateX(-50%);display:flex;align-items:center;gap:8px;max-width:calc(100% - 28px);padding:9px 14px;border:1px solid #cbdcec;border-radius:999px;background:rgba(255,255,255,.96);color:#1b5080;font-size:13px;font-weight:650;box-shadow:0 8px 20px #172c4a22;pointer-events:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.v21LiveAction span{overflow:hidden;text-overflow:ellipsis}
+.v17FootRight .v21SourceButton{background:#eff6ff;color:#235790;border:1px solid #bcd6f4;padding:8px 10px}
+@media(max-width:1180px){.v17FootRight .v21SourceButton span{max-width:118px;overflow:hidden;text-overflow:ellipsis}}
+
+/* v2.2 — scoped agent results remain dismissible and do not obscure the chat */
+.v20DetourSummary .v22DismissSummary{margin-left:auto;padding:4px!important;min-width:26px;min-height:26px;border-radius:8px;justify-content:center}
+.v20DetourSummary .v22FleetOutcomes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;margin-top:3px}
+.v20DetourSummary .v22FleetOutcomes>div{display:flex;flex-direction:column;align-items:flex-start;gap:2px;border:1px solid #d2e2f3;background:#fff;border-radius:7px;padding:7px 8px;font-size:11px;color:#32506b;min-width:0}
+.v20DetourSummary .v22FleetOutcomes strong{font-size:12px;color:#194a78}
+.v20DetourSummary .v22FleetOutcomes span{line-height:1.35;overflow-wrap:anywhere}
+.v20DetourSummary{max-height:214px;overflow-y:auto}

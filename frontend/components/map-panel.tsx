@@ -5,7 +5,7 @@ import { LocateFixed, Play, Pause, RotateCcw, Camera as CameraIcon, RefreshCcw, 
 import type {MissionSnapshot,DispatchPlan,LayerSelection,Incident,Position,CitySignals,Camera,IncidentEvidence,CityChanges} from '@/lib/types';
 import {api} from '@/lib/api';
 
-type Props={snapshot:MissionSnapshot;activePlan:DispatchPlan;referencePlan?:DispatchPlan|null;isolatedVehicle?:boolean;onIsolateVehicle?:(id:string)=>void;layers:LayerSelection;selectedIncident:string|null;onSelectIncident:(id:string)=>void;selectedVehicle:string|null;onSelectVehicle:(id:string|null)=>void;compare:boolean;theme:'light'|'dark';traffic?:CitySignals|null;signalMode?:boolean;cameraFocusId?:string|null;onCloseCamera?:()=>void;sensorFocusId?:string|null;routeFocusToken?:number;comparisonUi?:boolean;comparisonMix?:number;highlightIncidentIds?:string[];avoidedIncidentIds?:string[];focusSensorIds?:string[];evidence?:IncidentEvidence|null;intelMode?:boolean;changes?:CityChanges|null};
+type Props={snapshot:MissionSnapshot;activePlan:DispatchPlan;referencePlan?:DispatchPlan|null;isolatedVehicle?:boolean;onIsolateVehicle?:(id:string)=>void;layers:LayerSelection;selectedIncident:string|null;onSelectIncident:(id:string)=>void;selectedVehicle:string|null;onSelectVehicle:(id:string|null)=>void;compare:boolean;theme:'light'|'dark';traffic?:CitySignals|null;signalMode?:boolean;cameraFocusId?:string|null;onCloseCamera?:()=>void;sensorFocusId?:string|null;onSelectSensor?:(id:string|null)=>void;routeFocusToken?:number;comparisonUi?:boolean;comparisonMix?:number;highlightIncidentIds?:string[];avoidedIncidentIds?:string[];focusSensorIds?:string[];evidence?:IncidentEvidence|null;intelMode?:boolean;changes?:CityChanges|null};
 const styles={dark:'https://tiles.openfreemap.org/styles/dark',light:'https://tiles.openfreemap.org/styles/bright'} as const;
 /** Linear interpolation across the schematic polyline, used ONLY for labelled demo playback. */
 function alongRoute(points:Position[],fraction:number):Position{
@@ -44,7 +44,7 @@ function source(map:LibreMap,id:string,data:GeoJSON.FeatureCollection){if(!map.g
 function clusterSource(map:LibreMap,id:string,data:GeoJSON.FeatureCollection){if(!map.getSource(id))map.addSource(id,{type:'geojson',data,cluster:true,clusterRadius:43,clusterMaxZoom:13});else (map.getSource(id) as GeoJSONSource).setData(data);}
 function checkLayer(map:LibreMap,id:string){return Boolean(map.getLayer(id));}
 function ensureLayer(map:LibreMap,layer:Parameters<LibreMap['addLayer']>[0]){if(!checkLayer(map,layer.id))map.addLayer(layer);}
-export default function MapPanel({snapshot,activePlan,referencePlan,isolatedVehicle=false,onIsolateVehicle,layers,selectedIncident,onSelectIncident,selectedVehicle,onSelectVehicle,compare,theme,traffic,signalMode=false,cameraFocusId,onCloseCamera,sensorFocusId,routeFocusToken=0,comparisonUi=false,comparisonMix=55,highlightIncidentIds=[],avoidedIncidentIds=[],focusSensorIds=[],evidence,intelMode=false,changes}:Props){
+export default function MapPanel({snapshot,activePlan,referencePlan,isolatedVehicle=false,onIsolateVehicle,layers,selectedIncident,onSelectIncident,selectedVehicle,onSelectVehicle,compare,theme,traffic,signalMode=false,cameraFocusId,onCloseCamera,sensorFocusId,onSelectSensor,routeFocusToken=0,comparisonUi=false,comparisonMix=55,highlightIncidentIds=[],avoidedIncidentIds=[],focusSensorIds=[],evidence,intelMode=false,changes}:Props){
  const ref=useRef<HTMLDivElement>(null), mapRef=useRef<LibreMap|null>(null);const [ready,setReady]=useState(false),[error,setError]=useState(false);
  const [playing,setPlaying]=useState(false),[playbackProgress,setPlaybackProgress]=useState(0),progressRef=useRef(0);
  const [followReplay,setFollowReplay]=useState(false),lastFollowCameraAt=useRef(0);
@@ -56,6 +56,11 @@ export default function MapPanel({snapshot,activePlan,referencePlan,isolatedVehi
  const [buildingsError,setBuildingsError]=useState(false);
  const [inspectorOpen,setInspectorOpen]=useState(true);
  useEffect(()=>setInspectorOpen(true),[selectedVehicle]);
+ const [chosenLoadingId,setChosenLoadingId]=useState<string|null>(null);
+ const [chosenSensorId,setChosenSensorId]=useState<string|null>(null);
+ const sensorPopupRef=useRef<maplibregl.Popup|null>(null);
+ const popupSensorIdRef=useRef<string|null>(null);
+ const loadingPopupRef=useRef<maplibregl.Popup|null>(null);
  const [chosenCamera,setChosenCamera]=useState<Camera|null>(null),[imageRefresh,setImageRefresh]=useState(0),[imageError,setImageError]=useState(false),[terrain,setTerrain]=useState(false);
  const camerasRef=useRef(snapshot.cameras);camerasRef.current=snapshot.cameras;
  const previousRouteFocus=useRef('');
@@ -67,7 +72,7 @@ export default function MapPanel({snapshot,activePlan,referencePlan,isolatedVehi
    const timer=window.setInterval(()=>{setImageError(false);setImageRefresh(Date.now());},300_000);
    return ()=>window.clearInterval(timer);
  },[chosenCamera]);
- const handlersRef=useRef({onSelectIncident,onSelectVehicle,onIsolateVehicle});handlersRef.current={onSelectIncident,onSelectVehicle,onIsolateVehicle};
+ const handlersRef=useRef({onSelectIncident,onSelectVehicle,onIsolateVehicle,onSelectSensor});handlersRef.current={onSelectIncident,onSelectVehicle,onIsolateVehicle,onSelectSensor};
  useEffect(()=>{
   if(!ref.current||mapRef.current)return;
   const map=new maplibregl.Map({container:ref.current,style:styles[theme],center:[-3.7005,40.4206],zoom:12.8,pitch:20,bearing:-12,attributionControl:false});
@@ -84,7 +89,7 @@ export default function MapPanel({snapshot,activePlan,referencePlan,isolatedVehi
   const observer=new ResizeObserver(()=>{map.resize();});
   observer.observe(ref.current);
   map.on('error',e=>{const msg=String(e?.error?.message||'');if(msg.toLowerCase().includes('style'))setError(true);});
-  map.on('mousemove',e=>{const hits=map.queryRenderedFeatures(e.point,{layers:['incident-dot','incident-icon','camera-dot','camera-icon','traffic-sensors','vehicle-halos','route-active-stroke'].filter(id=>!!map.getLayer(id))});map.getCanvas().style.cursor=hits.length?'pointer':'';});
+  map.on('mousemove',e=>{const hits=map.queryRenderedFeatures(e.point,{layers:['incident-dot','incident-icon','camera-dot','camera-icon','traffic-sensors','sensor-icon','zone-dot','vehicle-halos','route-active-stroke'].filter(id=>!!map.getLayer(id))});map.getCanvas().style.cursor=hits.length?'pointer':'';});
   map.on('dblclick',e=>{
     const matches=map.queryRenderedFeatures(e.point,{layers:['route-active-stroke','route-baseline-stroke','vehicle-halos'].filter(id=>!!map.getLayer(id))});
     const id=String(matches[0]?.properties?.id||'');
@@ -98,19 +103,32 @@ export default function MapPanel({snapshot,activePlan,referencePlan,isolatedVehi
       if(camera){setChosenCamera(camera);setImageError(false);setImageRefresh(Date.now());map.easeTo({center:camera.location,zoom:Math.max(14.4,map.getZoom()),duration:650});}
       return;
     }
-    const feature=map.queryRenderedFeatures(e.point,{layers:['incident-dot','incident-icon','vehicle-halos','route-active-stroke'].filter(id=>!!map.getLayer(id))});
-    if(!feature.length){
-      const routes=map.queryRenderedFeatures(e.point,{layers:['route-active-stroke'].filter(id=>!!map.getLayer(id))});
-      if(routes.length){const vehicleId=String(routes[0].properties?.id||'');if(vehicleId)handlersRef.current.onSelectVehicle(vehicleId);return;}
-      const point=map.queryRenderedFeatures(e.point,{layers:['traffic-sensors'].filter(id=>!!map.getLayer(id))});
-      if(point.length){
-        const x=point[0];const el=document.createElement('div');el.className='v5SensorPopup';
-        const title=document.createElement('strong');title.textContent=`Sensor #${String(x.properties?.id||'')}`;el.appendChild(title);
-        const desc=document.createElement('span');desc.textContent=`Service level: ${String(x.properties?.level??'?')} · intensity: ${x.properties?.intensity>=0?x.properties?.intensity+' veh/h':'not reported'} · speed: ${x.properties?.speed>=0?x.properties?.speed+' km/h':'not reported'}`;el.appendChild(desc);
-        new maplibregl.Popup({closeButton:true,maxWidth:'260px'}).setLngLat(e.lngLat).setDOMContent(el).addTo(map);
+    const sensorHits=map.queryRenderedFeatures(e.point,{layers:['traffic-sensors','sensor-icon'].filter(id=>!!map.getLayer(id))});
+    if(sensorHits.length){
+      const found=sensorHits[0];const id=String(found.properties?.id||'');
+      if(id){handlersRef.current.onSelectSensor?.(id);setChosenSensorId(id);
+        if(handlersRef.current.onSelectSensor)return;
+        const el=document.createElement('div');el.className='v5SensorPopup';
+        const title=document.createElement('strong');title.textContent=`Sensor #${id}`;el.appendChild(title);
+        const level=document.createElement('span');const levelNames=['free','slow','delayed','congested'];const index=Number(found.properties?.level);level.textContent=`Level ${Number.isInteger(index)&&index>=0&&index<=3?`${index} · ${levelNames[index]}`:'unknown'} · local point observation, not a route ETA`;
+        const description=document.createElement('span');description.textContent=`Intensity ${Number(found.properties?.intensity)>=0?found.properties?.intensity+' veh/h':'not reported'} · speed ${Number(found.properties?.speed)>=0?found.properties?.speed+' km/h':'not reported'}`;
+        el.append(title,level,description);popupSensorIdRef.current=null;sensorPopupRef.current?.remove();
+        popupSensorIdRef.current=id;sensorPopupRef.current=new maplibregl.Popup({closeButton:true,maxWidth:'310px'}).setLngLat(e.lngLat).setDOMContent(el).addTo(map);
+        sensorPopupRef.current.on('close',()=>{if(popupSensorIdRef.current===id){popupSensorIdRef.current=null;setChosenSensorId(null);handlersRef.current.onSelectSensor?.(null);sensorPopupRef.current=null;}});
       }
       return;
     }
+    const loadingHits=map.queryRenderedFeatures(e.point,{layers:['zone-dot','loading-icon'].filter(id=>!!map.getLayer(id))});
+    if(loadingHits.length){
+      const id=String(loadingHits[0].properties?.id||'');setChosenLoadingId(id);
+      const el=document.createElement('div');el.className='v5SensorPopup';
+      const row=document.createElement('strong');row.textContent=`Loading zone ${id}`;
+      const note=document.createElement('span');note.textContent='Published location; real-time occupancy unavailable.';el.append(row,note);
+      loadingPopupRef.current?.remove();loadingPopupRef.current=new maplibregl.Popup({closeButton:true}).setLngLat(e.lngLat).setDOMContent(el).addTo(map);
+      loadingPopupRef.current.on('close',()=>{setChosenLoadingId(null);loadingPopupRef.current=null;});return;
+    }
+    const feature=map.queryRenderedFeatures(e.point,{layers:['incident-dot','incident-icon','vehicle-halos','route-active-stroke'].filter(id=>!!map.getLayer(id))});
+    if(!feature.length)return;
     const f=feature[0];const id=String(f.properties?.id||'');
     if(f.layer.id==='incident-dot'||f.layer.id==='incident-icon')handlersRef.current.onSelectIncident(id);
     if(f.layer.id==='vehicle-halos'||f.layer.id==='route-active-stroke')handlersRef.current.onSelectVehicle(id);
@@ -194,14 +212,14 @@ export default function MapPanel({snapshot,activePlan,referencePlan,isolatedVehi
       }
     }
     source(map,'risk-leg-source',fc(nearRoadSegments));
-    source(map,'incident-source',fc(snapshot.incidents.filter(x=>!signalMode||x.provenance.origin==='municipal_open_data').map(x=>pointFeature(x.location,{id:x.id,title:(avoidedIncidentIds.includes(x.id)?'OUTSIDE C · ':'')+x.title.slice(0,60),severity:x.severity,origin:x.provenance.origin,avoided:avoidedIncidentIds.includes(x.id)?1:0,selected:x.id===selectedIncident||highlightIncidentIds.includes(x.id)?1:0}))));
+    source(map,'incident-source',fc(snapshot.incidents.filter(x=>(layers.incidents||x.id===selectedIncident||highlightIncidentIds.includes(x.id))&&(!signalMode||x.provenance.origin==='municipal_open_data')).map(x=>pointFeature(x.location,{id:x.id,title:(avoidedIncidentIds.includes(x.id)?'OUTSIDE C · ':'')+x.title.slice(0,60),severity:x.severity,origin:x.provenance.origin,avoided:avoidedIncidentIds.includes(x.id)?1:0,selected:x.id===selectedIncident||highlightIncidentIds.includes(x.id)?1:0}))));
     const order=new Map(activePlan.routes.flatMap(r=>r.stop_ids.map((id,index)=>[id,{vehicle:r.vehicle_id,number:index+1}] as const)));
     source(map,'delivery-source',fc(snapshot.deliveries.map(x=>pointFeature(x.location,{id:x.id,priority:x.priority,vehicle:order.get(x.id)?.vehicle||'',seq:order.get(x.id)?.number||0}))));
-    source(map,'zone-source',fc(snapshot.loading_zones.map(x=>pointFeature(x.location,{id:x.id}))));
-    clusterSource(map,'camera-source',fc(snapshot.cameras.filter(x=>x.provenance.origin==='municipal_open_data').map(x=>pointFeature(x.location,{id:x.id}))));
+    source(map,'zone-source',fc(snapshot.loading_zones.map(x=>pointFeature(x.location,{id:x.id,selected:x.id===chosenLoadingId?1:0}))));
+    clusterSource(map,'camera-source',fc(snapshot.cameras.filter(x=>x.provenance.origin==='municipal_open_data').map(x=>pointFeature(x.location,{id:x.id,selected:x.id===(chosenCamera?.id||cameraFocusId)?1:0}))));
     source(map,'vehicle-source',fc(snapshot.vehicles.map((v)=>pointFeature(v.location,{id:v.id,color:v.color,selected:v.id===selectedVehicle?1:0}))));
     source(map,'traffic-density-source',fc((traffic?.points||[]).map(x=>pointFeature(x.location,{level:x.service_level??-1}))));
-    clusterSource(map,'traffic-source',fc((traffic?.points||[]).filter(x=>!focusSensorIds.length||focusSensorIds.includes(x.id)).map(x=>pointFeature(x.location,{id:x.id,level:x.service_level??-1,intensity:x.intensity_vph??-1,speed:x.speed_kmh??-1,occupancy:x.occupancy_pct??-1}))));
+    clusterSource(map,'traffic-source',fc((traffic?.points||[]).filter(x=>!focusSensorIds.length||focusSensorIds.includes(x.id)).map(x=>pointFeature(x.location,{id:x.id,selected:x.id===(chosenSensorId||sensorFocusId)?1:0,level:x.service_level??-1,intensity:x.intensity_vph??-1,speed:x.speed_kmh??-1,occupancy:x.occupancy_pct??-1}))));
     source(map,'traffic-changes',fc(signalMode&&changeHighlights&&changes?.available?changes.changed.filter(x=>x.delta>0).map(x=>pointFeature(x.location,{id:x.id,delta:x.delta})):[]));
     if(evidence){
       const center=evidence.incident.location;
@@ -242,21 +260,21 @@ export default function MapPanel({snapshot,activePlan,referencePlan,isolatedVehi
     ensureLayer(map,{id:'traffic-cluster-count',type:'symbol',source:'traffic-source',filter:['has','point_count'],layout:{'text-font':['Noto Sans Regular'],'text-field':['get','point_count_abbreviated'],'text-size':12},paint:{'text-color':'#ffffff'}});
     ensureLayer(map,{id:'camera-clusters',type:'circle',source:'camera-source',filter:['has','point_count'],paint:{'circle-color':'#0C8EBC','circle-radius':['step',['get','point_count'],16,20,20,60,26],'circle-stroke-color':'#e9f9ff','circle-stroke-width':2}});
     ensureLayer(map,{id:'camera-cluster-count',type:'symbol',source:'camera-source',filter:['has','point_count'],layout:{'text-font':['Noto Sans Regular'],'text-field':['get','point_count_abbreviated'],'text-size':12},paint:{'text-color':'#ffffff'}});
-    ensureLayer(map,{id:'traffic-sensors-glow',type:'circle',source:'traffic-source',filter:['!', ['has','point_count']],paint:{'circle-color':['match',['get','level'],0,'#129869',1,'#6157D9',2,'#B000E6',3,'#E91D64','#657888'],'circle-radius':9,'circle-blur':0.85,'circle-opacity':0.21}});
-    ensureLayer(map,{id:'traffic-sensors',type:'circle',source:'traffic-source',filter:['!', ['has','point_count']],paint:{'circle-color':['match',['get','level'],0,'#129869',1,'#6157D9',2,'#B000E6',3,'#E91D64','#657888'],'circle-radius':6.1,'circle-stroke-width':1.3,'circle-stroke-color':theme==='light'?'#ffffff':'#0d1b25','circle-opacity':0.89}});
+    ensureLayer(map,{id:'traffic-sensors-glow',type:'circle',source:'traffic-source',filter:['!', ['has','point_count']],paint:{'circle-color':['match',['get','level'],0,'#16805E',1,'#D2A136',2,'#D97735',3,'#C13F5A','#657888'],'circle-radius':['case',['==',['get','selected'],1],19,11],'circle-blur':0.55,'circle-opacity':0.21}});
+    ensureLayer(map,{id:'traffic-sensors',type:'circle',source:'traffic-source',filter:['!', ['has','point_count']],paint:{'circle-color':['match',['get','level'],0,'#16805E',1,'#D2A136',2,'#D97735',3,'#C13F5A','#657888'],'circle-radius':['case',['==',['get','selected'],1],12.5,8],'circle-stroke-width':['case',['==',['get','selected'],1],3,2],'circle-stroke-color':theme==='light'?'#ffffff':'#0d1b25','circle-opacity':0.89}});
     ensureLayer(map,{id:'evidence-fill',type:'fill',source:'evidence-radius',paint:{'fill-color':'#22aa8c','fill-opacity':0.085}});
     ensureLayer(map,{id:'evidence-boundary',type:'line',source:'evidence-radius',paint:{'line-color':'#1aab91','line-width':2,'line-dasharray':[3,2],'line-opacity':0.85}});
     ensureLayer(map,{id:'evidence-edges',type:'line',source:'evidence-links',paint:{'line-color':['match',['get','kind'],'camera','#35a8d8','#24bc92'],'line-width':1.9,'line-dasharray':[3,2],'line-opacity':0.8}});
     ensureLayer(map,{id:'incident-halo',type:'circle',source:'incident-source',paint:{'circle-radius':['case',['==',['get','selected'],1],17,11],'circle-color':'#AE3654','circle-opacity':0.2,'circle-stroke-width':1,'circle-stroke-color':'#AE3654','circle-stroke-opacity':0.38}});
-    ensureLayer(map,{id:'incident-dot',type:'circle',source:'incident-source',paint:{'circle-radius':['case',['==',['get','selected'],1],9,7],'circle-color':['case',['==',['get','avoided'],1],'#207C65',['match',['get','origin'],'synthetic','#6E4CA0','#B43350']],'circle-stroke-color':'#321F1B','circle-stroke-width':2.5}});
-    ensureLayer(map,{id:'incident-icon',type:'symbol',source:'incident-source',layout:{'text-font':['Noto Sans Regular'],'text-field':['case',['==',['get','avoided'],1],'✓',['==',['get','origin'],'synthetic'],'S','!'],'text-size':13,'text-allow-overlap':true,'text-ignore-placement':true},paint:{'text-color':'#ffffff'}});
+    ensureLayer(map,{id:'incident-dot',type:'circle',source:'incident-source',paint:{'circle-radius':['case',['==',['get','selected'],1],13,8.5],'circle-color':['case',['==',['get','avoided'],1],'#207C65',['match',['get','origin'],'synthetic','#6E4CA0','#B43350']],'circle-stroke-color':'#321F1B','circle-stroke-width':2.5}});
+    ensureLayer(map,{id:'incident-icon',type:'symbol',source:'incident-source',layout:{'text-font':['Noto Sans Regular'],'text-field':['case',['==',['get','avoided'],1],'✓',['==',['get','origin'],'synthetic'],'S','!'],'text-size':['case',['==',['get','selected'],1],17,13],'text-allow-overlap':true,'text-ignore-placement':true},paint:{'text-color':'#ffffff'}});
     ensureLayer(map,{id:'delivery-dot',type:'circle',source:'delivery-source',paint:{'circle-radius':5,'circle-color':'#F3F6F9','circle-stroke-width':2,'circle-stroke-color':'#243B4B'}});
-    ensureLayer(map,{id:'zone-dot',type:'circle',source:'zone-source',paint:{'circle-radius':5,'circle-color':'#128C4E','circle-stroke-width':2,'circle-stroke-color':'#142619'}});
+    ensureLayer(map,{id:'zone-dot',type:'circle',source:'zone-source',paint:{'circle-radius':['case',['==',['get','selected'],1],12,7.5],'circle-color':'#128C4E','circle-stroke-width':2,'circle-stroke-color':'#142619'}});
     ensureLayer(map,{id:'delivery-order',type:'symbol',source:'delivery-source',layout:{'text-font':['Noto Sans Regular'],'text-field':['to-string',['get','seq']],'text-size':11,'text-offset':[0,1.65],'text-anchor':'top','text-allow-overlap':false},paint:{'text-color':theme==='light'?'#135342':'#E6FBE6','text-halo-color':theme==='light'?'#ffffff':'#07151d','text-halo-width':2}});
-    ensureLayer(map,{id:'camera-dot',type:'circle',source:'camera-source',filter:['!', ['has','point_count']],paint:{'circle-radius':5,'circle-color':'#60C9FD','circle-stroke-width':2,'circle-stroke-color':'#123544'}});
-    ensureLayer(map,{id:'camera-icon',type:'symbol',source:'camera-source',filter:['!', ['has','point_count']],layout:{'text-font':['Noto Sans Regular'],'text-field':'C','text-size':11,'text-allow-overlap':true},paint:{'text-color':'#ffffff'}});
-    ensureLayer(map,{id:'loading-icon',type:'symbol',source:'zone-source',layout:{'text-font':['Noto Sans Regular'],'text-field':'P','text-size':11,'text-allow-overlap':true},paint:{'text-color':'#ffffff'}});
-    ensureLayer(map,{id:'sensor-icon',type:'symbol',source:'traffic-source',filter:['!', ['has','point_count']],layout:{'text-font':['Noto Sans Regular'],'text-field':'T','text-size':11,'text-allow-overlap':true},paint:{'text-color':'#ffffff'}});
+    ensureLayer(map,{id:'camera-dot',type:'circle',source:'camera-source',filter:['!', ['has','point_count']],paint:{'circle-radius':['case',['==',['get','selected'],1],13,8],'circle-color':'#138ABC','circle-stroke-width':2,'circle-stroke-color':'#123544'}});
+    ensureLayer(map,{id:'camera-icon',type:'symbol',source:'camera-source',filter:['!', ['has','point_count']],layout:{'text-font':['Noto Sans Regular'],'text-field':'C','text-size':['case',['==',['get','selected'],1],16,12],'text-allow-overlap':true},paint:{'text-color':'#ffffff'}});
+    ensureLayer(map,{id:'loading-icon',type:'symbol',source:'zone-source',layout:{'text-font':['Noto Sans Regular'],'text-field':'P','text-size':['case',['==',['get','selected'],1],16,12],'text-allow-overlap':true},paint:{'text-color':'#ffffff'}});
+    ensureLayer(map,{id:'sensor-icon',type:'symbol',source:'traffic-source',filter:['!', ['has','point_count']],layout:{'text-font':['Noto Sans Regular'],'text-field':'T','text-size':['case',['==',['get','selected'],1],16,12],'text-allow-overlap':true},paint:{'text-color':'#ffffff'}});
     ensureLayer(map,{id:'vehicle-halos',type:'circle',source:'vehicle-source',paint:{'circle-radius':['case',['==',['get','selected'],1],18,13],'circle-color':['get','color'],'circle-opacity':0.25,'circle-stroke-color':['get','color'],'circle-stroke-width':1.4}});
     ensureLayer(map,{id:'vehicle-centers',type:'circle',source:'vehicle-source',paint:{'circle-radius':6,'circle-color':['get','color'],'circle-stroke-color':'#101924','circle-stroke-width':1.6}});
     ensureLayer(map,{id:'playback-halo',type:'circle',source:'playback-source',paint:{'circle-radius':14,'circle-color':['get','color'],'circle-opacity':0.2,'circle-stroke-color':['get','color'],'circle-stroke-width':1.5}});
@@ -290,7 +308,7 @@ export default function MapPanel({snapshot,activePlan,referencePlan,isolatedVehi
     map.setPaintProperty('route-active-stroke','line-offset',compare?-2.5:0);
     if(map.getLayer('delivery-order'))map.setFilter('delivery-order',selectedVehicle?['==',['get','vehicle'],selectedVehicle]:['==',['get','vehicle'],'__none__']);
   }catch(ex){console.warn('Map layer update failed',ex);}
- },[ready,snapshot,activePlan,layers,selectedIncident,selectedVehicle,compare,referencePlan,isolatedVehicle,traffic,signalMode,theme,densityView,evidence,changes,changeHighlights,comparisonMix,highlightIncidentIds,avoidedIncidentIds,focusSensorIds]);
+ },[ready,snapshot,activePlan,layers,selectedIncident,selectedVehicle,compare,referencePlan,isolatedVehicle,traffic,signalMode,theme,densityView,evidence,changes,changeHighlights,comparisonMix,highlightIncidentIds,avoidedIncidentIds,focusSensorIds,chosenCamera?.id,chosenSensorId,chosenLoadingId,cameraFocusId,sensorFocusId]);
  // This is a citywide sensor layer, not a route. Reframe the actual observed bounds.
  useEffect(()=>{
    const map=mapRef.current;
@@ -313,14 +331,17 @@ export default function MapPanel({snapshot,activePlan,referencePlan,isolatedVehi
  },[cameraFocusId,ready,snapshot.cameras]);
  useEffect(()=>{
    if(!ready||!sensorFocusId)return;
+   setChosenSensorId(sensorFocusId);
    const sensor=traffic?.points.find(p=>p.id===sensorFocusId);
    if(!sensor)return;
    mapRef.current?.flyTo({center:sensor.location,zoom:16.4,pitch:40,duration:850});
    const div=document.createElement('div');div.className='v5SensorPopup';
    const name=document.createElement('strong');name.textContent=`Sensor #${sensor.id}`;
-   const detail=document.createElement('span');detail.textContent=`Level ${sensor.service_level??'unknown'} · speed ${sensor.speed_kmh??'not reported'} km/h · occupancy ${sensor.occupancy_pct??'not reported'}%`;
-   div.append(name,detail);new maplibregl.Popup({maxWidth:'270px'}).setLngLat(sensor.location).setDOMContent(div).addTo(mapRef.current!);
- },[sensorFocusId,ready,traffic]);
+   const detail=document.createElement('span');const names=['free','slow','delayed','congested'];detail.textContent=`Level ${sensor.service_level??'unknown'} (${sensor.service_level===null?'unknown':names[sensor.service_level]||'unknown'}) · speed ${sensor.speed_kmh??'not reported'} km/h · occupancy ${sensor.occupancy_pct??'not reported'}%`;
+   div.append(name,detail);popupSensorIdRef.current=null;sensorPopupRef.current?.remove();
+   popupSensorIdRef.current=sensor.id;sensorPopupRef.current=new maplibregl.Popup({maxWidth:'270px',closeButton:true}).setLngLat(sensor.location).setDOMContent(div).addTo(mapRef.current!);
+   sensorPopupRef.current.on('close',()=>{if(popupSensorIdRef.current===sensor.id){popupSensorIdRef.current=null;setChosenSensorId(null);onSelectSensor?.(null);sensorPopupRef.current=null;}});
+ },[sensorFocusId,ready,traffic,onSelectSensor]);
  const updatePlayback=useCallback((fraction:number)=>{
    progressRef.current=fraction;
    const map=mapRef.current;
@@ -388,7 +409,7 @@ export default function MapPanel({snapshot,activePlan,referencePlan,isolatedVehi
     </div><div className="v6CameraDockFooter"><span>Periodic still frame (auto refresh ~5 min). Not video. Timestamp is embedded by source when available.</span><button onClick={()=>{setImageError(false);setImageRefresh(Date.now());}}><RefreshCcw size={14}/> Refresh</button></div>
   </div>}
   {comparisonUi&&<div className="v17MapLegend" aria-label="Map symbols legend"><button type="button" aria-expanded={legendOpen} onClick={()=>setLegendOpen(v=>!v)}>{legendOpen?'Hide legend':'Map legend'} <span aria-hidden="true">{legendOpen?'−':'+'}</span></button>{legendOpen&&<div><span>▬ Routes</span><span>! Municipal notice</span><span>S Synthetic</span><span>C Camera</span><span>P Loading</span><span>T Sensor</span></div>}</div>}
-  {comparisonUi&&<button type="button" className="v17WheelZoom" onClick={()=>setWheelZoom(v=>!v)} title="Alternar zoom con rueda" aria-pressed={wheelZoom}>{wheelZoom?'Rueda: zoom':'Rueda: desplazar'}</button>}
+  {comparisonUi&&<button type="button" className="v17WheelZoom" onClick={()=>setWheelZoom(v=>!v)} title="Toggle mouse wheel zoom" aria-pressed={wheelZoom}>{wheelZoom?'Wheel: zoom':'Wheel: scroll'}</button>}
   {!signalMode&&hasRoadGeometries&&<div className={`v3PlaybackBar ${comparisonUi?'v15ReplayMinimal':''}`} aria-label="Simulated route playback">
     <button aria-label={playing?'Pause simulation':'Play simulation'} title={playing?'Pause':'Play simulated vehicles'} onClick={()=>{
       if(!playing&&progressRef.current>=1){updatePlayback(0);setPlaybackProgress(0);}
