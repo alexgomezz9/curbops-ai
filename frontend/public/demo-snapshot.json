@@ -1,0 +1,636 @@
+{
+  "scenario_name": "Madrid · Last-mile response",
+  "source_mode": "demo",
+  "simulation": true,
+  "generated_at": "2026-11-03T21:13:45.060117+00:00",
+  "depot": [
+    -3.7012,
+    40.41745
+  ],
+  "vehicles": [
+    {
+      "id": "V-01",
+      "driver": "Elena Martín",
+      "callsign": "VAN 01",
+      "color": "#2ADBC2",
+      "capacity": 7,
+      "location": [
+        -3.7012,
+        40.41745
+      ],
+      "stop_ids": [
+        "D-101",
+        "D-104",
+        "D-103",
+        "D-110",
+        "D-112"
+      ],
+      "status": "en_route"
+    },
+    {
+      "id": "V-02",
+      "driver": "Hugo Serrano",
+      "callsign": "VAN 02",
+      "color": "#FCB95A",
+      "capacity": 7,
+      "location": [
+        -3.7012,
+        40.41745
+      ],
+      "stop_ids": [
+        "D-114",
+        "D-109",
+        "D-107",
+        "D-105",
+        "D-106"
+      ],
+      "status": "en_route"
+    },
+    {
+      "id": "V-03",
+      "driver": "Carmen Gil",
+      "callsign": "VAN 03",
+      "color": "#AE91FF",
+      "capacity": 7,
+      "location": [
+        -3.7012,
+        40.41745
+      ],
+      "stop_ids": [
+        "D-108",
+        "D-113",
+        "D-111",
+        "D-115",
+        "D-102"
+      ],
+      "status": "en_route"
+    }
+  ],
+  "deliveries": [
+    {
+      "id": "D-101",
+      "customer": "Mercado San Miguel",
+      "location": [
+        -3.7096,
+        40.4155
+      ],
+      "district": "Centro",
+      "scheduled_minutes": 42,
+      "service_minutes": 8,
+      "priority": "critical",
+      "load_units": 1
+    },
+    {
+      "id": "D-102",
+      "customer": "Studio Norte",
+      "location": [
+        -3.7119,
+        40.4228
+      ],
+      "district": "Centro",
+      "scheduled_minutes": 58,
+      "service_minutes": 8,
+      "priority": "urgent",
+      "load_units": 1
+    },
+    {
+      "id": "D-103",
+      "customer": "Gran Vía Retail",
+      "location": [
+        -3.7048,
+        40.4206
+      ],
+      "district": "Centro",
+      "scheduled_minutes": 35,
+      "service_minutes": 8,
+      "priority": "standard",
+      "load_units": 1
+    },
+    {
+      "id": "D-104",
+      "customer": "Príncipe Pío Lab",
+      "location": [
+        -3.7184,
+        40.4215
+      ],
+      "district": "Moncloa",
+      "scheduled_minutes": 100,
+      "service_minutes": 8,
+      "priority": "standard",
+      "load_units": 1
+    },
+    {
+      "id": "D-105",
+      "customer": "Chueca Supply",
+      "location": [
+        -3.6972,
+        40.4229
+      ],
+      "district": "Centro",
+      "scheduled_minutes": 53,
+      "service_minutes": 8,
+      "priority": "urgent",
+      "load_units": 1
+    },
+    {
+      "id": "D-106",
+      "customer": "Alcalá Medical",
+      "location": [
+        -3.6879,
+        40.4197
+      ],
+      "district": "Salamanca",
+      "scheduled_minutes": 88,
+      "service_minutes": 8,
+      "priority": "standard",
+      "load_units": 1
+    },
+    {
+      "id": "D-107",
+      "customer": "Retiro Essentials",
+      "location": [
+        -3.6849,
+        40.4148
+      ],
+      "district": "Retiro",
+      "scheduled_minutes": 80,
+      "service_minutes": 8,
+      "priority": "urgent",
+      "load_units": 1
+    },
+    {
+      "id": "D-108",
+      "customer": "Atocha Distribution",
+      "location": [
+        -3.6948,
+        40.4097
+      ],
+      "district": "Arganzuela",
+      "scheduled_minutes": 72,
+      "service_minutes": 8,
+      "priority": "standard",
+      "load_units": 1
+    },
+    {
+      "id": "D-109",
+      "customer": "Embajadores Hub",
+      "location": [
+        -3.7027,
+        40.4098
+      ],
+      "district": "Centro",
+      "scheduled_minutes": 66,
+      "service_minutes": 8,
+      "priority": "standard",
+      "load_units": 1
+    },
+    {
+      "id": "D-110",
+      "customer": "Argüelles Works",
+      "location": [
+        -3.7168,
+        40.4309
+      ],
+      "district": "Moncloa",
+      "scheduled_minutes": 105,
+      "service_minutes": 8,
+      "priority": "standard",
+      "load_units": 1
+    },
+    {
+      "id": "D-111",
+      "customer": "Recoletos Office",
+      "location": [
+        -3.6897,
+        40.4243
+      ],
+      "district": "Salamanca",
+      "scheduled_minutes": 78,
+      "service_minutes": 8,
+      "priority": "standard",
+      "load_units": 1
+    },
+    {
+      "id": "D-112",
+      "customer": "La Latina Corner",
+      "location": [
+        -3.7102,
+        40.4125
+      ],
+      "district": "Centro",
+      "scheduled_minutes": 48,
+      "service_minutes": 8,
+      "priority": "standard",
+      "load_units": 1
+    },
+    {
+      "id": "D-113",
+      "customer": "Conde Duque Atelier",
+      "location": [
+        -3.7101,
+        40.4284
+      ],
+      "district": "Centro",
+      "scheduled_minutes": 89,
+      "service_minutes": 8,
+      "priority": "standard",
+      "load_units": 1
+    },
+    {
+      "id": "D-114",
+      "customer": "Goya Pharmacy",
+      "location": [
+        -3.6789,
+        40.4251
+      ],
+      "district": "Salamanca",
+      "scheduled_minutes": 120,
+      "service_minutes": 8,
+      "priority": "urgent",
+      "load_units": 1
+    },
+    {
+      "id": "D-115",
+      "customer": "Lavapiés Collective",
+      "location": [
+        -3.7012,
+        40.4095
+      ],
+      "district": "Centro",
+      "scheduled_minutes": 74,
+      "service_minutes": 8,
+      "priority": "standard",
+      "load_units": 1
+    }
+  ],
+  "incidents": [
+    {
+      "id": "I-901",
+      "title": "Gran Vía · partial closure",
+      "location": [
+        -3.7058,
+        40.42035
+      ],
+      "kind": "closure",
+      "severity": "high",
+      "radius_m": 330,
+      "detail": "Scenario: carriageway restriction along a short section of Gran Vía.",
+      "starts_at": null,
+      "ends_at": null,
+      "provenance": {
+        "origin": "synthetic",
+        "label": "CurbOps fictional rehearsal scenario",
+        "updated_at": null,
+        "url": null
+      }
+    },
+    {
+      "id": "I-902",
+      "title": "Alcalá · maintenance works",
+      "location": [
+        -3.6903,
+        40.4191
+      ],
+      "kind": "roadworks",
+      "severity": "medium",
+      "radius_m": 210,
+      "detail": "Scenario: works affecting one lane near Plaza de Cibeles.",
+      "starts_at": null,
+      "ends_at": null,
+      "provenance": {
+        "origin": "synthetic",
+        "label": "CurbOps fictional rehearsal scenario",
+        "updated_at": null,
+        "url": null
+      }
+    },
+    {
+      "id": "I-903",
+      "title": "Atocha · event footprint",
+      "location": [
+        -3.6929,
+        40.4099
+      ],
+      "kind": "event",
+      "severity": "low",
+      "radius_m": 170,
+      "detail": "Scenario: temporary pedestrian event perimeter.",
+      "starts_at": null,
+      "ends_at": null,
+      "provenance": {
+        "origin": "synthetic",
+        "label": "CurbOps fictional rehearsal scenario",
+        "updated_at": null,
+        "url": null
+      }
+    }
+  ],
+  "loading_zones": [
+    {
+      "id": "L-11",
+      "label": "Calle Mayor · sample bay",
+      "location": [
+        -3.709,
+        40.4157
+      ],
+      "district": "Centro",
+      "schedule": "See posted signage",
+      "provenance": {
+        "origin": "synthetic",
+        "label": "CurbOps fictional rehearsal scenario",
+        "updated_at": null,
+        "url": null
+      }
+    },
+    {
+      "id": "L-12",
+      "label": "Calle Alcalá · sample bay",
+      "location": [
+        -3.6894,
+        40.42
+      ],
+      "district": "Salamanca",
+      "schedule": "See posted signage",
+      "provenance": {
+        "origin": "synthetic",
+        "label": "CurbOps fictional rehearsal scenario",
+        "updated_at": null,
+        "url": null
+      }
+    },
+    {
+      "id": "L-13",
+      "label": "Embajadores · sample bay",
+      "location": [
+        -3.7032,
+        40.4088
+      ],
+      "district": "Centro",
+      "schedule": "See posted signage",
+      "provenance": {
+        "origin": "synthetic",
+        "label": "CurbOps fictional rehearsal scenario",
+        "updated_at": null,
+        "url": null
+      }
+    },
+    {
+      "id": "L-14",
+      "label": "Fuencarral · sample bay",
+      "location": [
+        -3.7028,
+        40.4268
+      ],
+      "district": "Centro",
+      "schedule": "See posted signage",
+      "provenance": {
+        "origin": "synthetic",
+        "label": "CurbOps fictional rehearsal scenario",
+        "updated_at": null,
+        "url": null
+      }
+    },
+    {
+      "id": "L-15",
+      "label": "Serrano · sample bay",
+      "location": [
+        -3.6871,
+        40.4275
+      ],
+      "district": "Salamanca",
+      "schedule": "See posted signage",
+      "provenance": {
+        "origin": "synthetic",
+        "label": "CurbOps fictional rehearsal scenario",
+        "updated_at": null,
+        "url": null
+      }
+    }
+  ],
+  "cameras": [
+    {
+      "id": "C-01",
+      "label": "Gran Vía / Callao · mock location",
+      "location": [
+        -3.7068,
+        40.4204
+      ],
+      "image_url": null,
+      "provenance": {
+        "origin": "synthetic",
+        "label": "CurbOps fictional rehearsal scenario",
+        "updated_at": null,
+        "url": null
+      }
+    },
+    {
+      "id": "C-02",
+      "label": "Cibeles · mock location",
+      "location": [
+        -3.6928,
+        40.4192
+      ],
+      "image_url": null,
+      "provenance": {
+        "origin": "synthetic",
+        "label": "CurbOps fictional rehearsal scenario",
+        "updated_at": null,
+        "url": null
+      }
+    }
+  ],
+  "original_plan": {
+    "id": "baseline",
+    "status": "baseline",
+    "generated_at": "2026-11-03T21:13:44.854871+00:00",
+    "routes": [
+      {
+        "vehicle_id": "V-01",
+        "coordinates": [
+          [
+            -3.7012,
+            40.41745
+          ],
+          [
+            -3.7096,
+            40.4155
+          ],
+          [
+            -3.7184,
+            40.4215
+          ],
+          [
+            -3.7048,
+            40.4206
+          ],
+          [
+            -3.7168,
+            40.4309
+          ],
+          [
+            -3.7102,
+            40.4125
+          ],
+          [
+            -3.7012,
+            40.41745
+          ]
+        ],
+        "color": "#2ADBC2",
+        "stop_ids": [
+          "D-101",
+          "D-104",
+          "D-103",
+          "D-110",
+          "D-112"
+        ],
+        "distance_km": 9.14,
+        "estimated_minutes": 23.8,
+        "incidents_near": [
+          "I-901"
+        ],
+        "fidelity": "illustrative"
+      },
+      {
+        "vehicle_id": "V-02",
+        "coordinates": [
+          [
+            -3.7012,
+            40.41745
+          ],
+          [
+            -3.6789,
+            40.4251
+          ],
+          [
+            -3.7027,
+            40.4098
+          ],
+          [
+            -3.6849,
+            40.4148
+          ],
+          [
+            -3.6972,
+            40.4229
+          ],
+          [
+            -3.6879,
+            40.4197
+          ],
+          [
+            -3.7012,
+            40.41745
+          ]
+        ],
+        "color": "#FCB95A",
+        "stop_ids": [
+          "D-114",
+          "D-109",
+          "D-107",
+          "D-105",
+          "D-106"
+        ],
+        "distance_km": 11.84,
+        "estimated_minutes": 30.9,
+        "incidents_near": [
+          "I-902"
+        ],
+        "fidelity": "illustrative"
+      },
+      {
+        "vehicle_id": "V-03",
+        "coordinates": [
+          [
+            -3.7012,
+            40.41745
+          ],
+          [
+            -3.6948,
+            40.4097
+          ],
+          [
+            -3.7101,
+            40.4284
+          ],
+          [
+            -3.6897,
+            40.4243
+          ],
+          [
+            -3.7012,
+            40.4095
+          ],
+          [
+            -3.7119,
+            40.4228
+          ],
+          [
+            -3.7012,
+            40.41745
+          ]
+        ],
+        "color": "#AE91FF",
+        "stop_ids": [
+          "D-108",
+          "D-113",
+          "D-111",
+          "D-115",
+          "D-102"
+        ],
+        "distance_km": 12.18,
+        "estimated_minutes": 31.8,
+        "incidents_near": [
+          "I-901",
+          "I-903"
+        ],
+        "fidelity": "illustrative"
+      }
+    ],
+    "metrics": {
+      "distance_km": 33.16,
+      "travel_minutes": 86.5,
+      "late_deliveries": 2,
+      "exposures": 4,
+      "total_stops": 15,
+      "score": 51.29
+    },
+    "explanation": "Original fictional dispatcher assignments",
+    "limitations": [
+      "Schematic geometries: not turn-by-turn drivable routes unless road-network provider enabled.",
+      "Travel times are modelled, not verified real-time ETAs.",
+      "Orders, vehicles and baseline are fictional."
+    ]
+  },
+  "proposed_plan": null,
+  "approved_plan": null,
+  "sources": [
+    {
+      "id": "incidents",
+      "name": "Traffic incidents",
+      "connected": false,
+      "updated_at": null,
+      "count": 3,
+      "provenance": "synthetic",
+      "detail": "Reproducible demo fixture"
+    },
+    {
+      "id": "loading",
+      "name": "Loading reserves",
+      "connected": false,
+      "updated_at": null,
+      "count": 5,
+      "provenance": "synthetic",
+      "detail": "Illustrative locations, NOT availability"
+    },
+    {
+      "id": "cameras",
+      "name": "Traffic cameras",
+      "connected": false,
+      "updated_at": null,
+      "count": 2,
+      "provenance": "synthetic",
+      "detail": "Mock locations, no real imagery"
+    }
+  ]
+}
