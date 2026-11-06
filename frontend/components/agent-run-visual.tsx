@@ -47,7 +47,8 @@ export default function AgentRunVisual({events,result,loading,snapshot,onMap,onI
     return nodes;
   },[events,result]);
   // Do not show a stale proposal during unrelated investigations.
-  const proposedInThisRun=Boolean(result?.proposed_plan && events.some(e=>e.type==='tool.completed' && e.trace?.tool==='prepare_dispatch_proposal'));
+  const proposalTools=['prepare_dispatch_proposal','prepare_precautionary_avoidance','rehearse_incident_response'];
+  const proposedInThisRun=Boolean(result?.proposed_plan && events.some(e=>e.type==='tool.completed' && e.trace && proposalTools.includes(e.trace.tool)));
   const candidatePlan=proposedInThisRun ? result!.proposed_plan : null;
   const finalPlan=candidatePlan?.routes.every(r=>r.fidelity==='road_network')?candidatePlan:null;
   const base=snapshot.original_plan;

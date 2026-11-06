@@ -14,9 +14,10 @@ export function normalizeBriefing(raw:string):string {
     .replace(/\s+(\d+)\.\s+(?=\*\*)/g,'\n$1. ');
 }
 function inline(text:string):ReactNode[] {
-  return text.split(/(\*\*[^*]+\*\*|`[^`]+`)/g).filter(Boolean).map((piece,i)=>{
+  return text.split(/(\*\*[^*]+\*\*|`[^`]+`|\*[^*]+\*)/g).filter(Boolean).map((piece,i)=>{
     if(piece.startsWith('**')&&piece.endsWith('**'))return <strong key={i}>{piece.slice(2,-2)}</strong>;
     if(piece.startsWith('`')&&piece.endsWith('`'))return <code key={i}>{piece.slice(1,-1)}</code>;
+    if(piece.startsWith('*')&&piece.endsWith('*'))return <em key={i}>{piece.slice(1,-1)}</em>;
     return piece;
   });
 }
@@ -31,7 +32,7 @@ export default function BriefingMarkdown({text}:{text:string}) {
     const kind=bullet?'list':heading?'heading':'paragraph';
     if(kind==='list'&&blocks.at(-1)?.kind==='list')blocks.at(-1)!.lines.push(line.replace(/^(?:[-•*]\s+|\d+[.)]\s+)/,''));
     else if(kind==='paragraph'&&blocks.at(-1)?.kind==='paragraph')blocks.at(-1)!.lines.push(line);
-    else blocks.push({kind,lines:[line]});
+    else blocks.push({kind,lines:[kind==='list'?line.replace(/^(?:[-•*]\s+|\d+[.)]\s+)/,''):line]});
   }
   return <div className="v7ReadableBriefing">{blocks.map((b,i)=>{
     if(b.kind==='list')return <ul key={i}>{b.lines.map((line,j)=><li key={j}>{inline(line)}</li>)}</ul>;
