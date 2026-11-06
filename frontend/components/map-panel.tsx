@@ -1,6 +1,7 @@
 'use client';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import maplibregl, { Map as LibreMap, GeoJSONSource } from 'maplibre-gl';
+import * as maplibregl from 'maplibre-gl';
+import type { Map as LibreMap, GeoJSONSource } from 'maplibre-gl';
 import { LocateFixed, Play, Pause, RotateCcw, Camera as CameraIcon, RefreshCcw, X, Mountain, Layers, Building2 } from 'lucide-react';
 import type {MissionSnapshot,DispatchPlan,LayerSelection,Incident,Position,CitySignals,Camera,IncidentEvidence,CityChanges} from '@/lib/types';
 import {api} from '@/lib/api';
@@ -75,6 +76,7 @@ export default function MapPanel({snapshot,activePlan,referencePlan,isolatedVehi
  const handlersRef=useRef({onSelectIncident,onSelectVehicle,onIsolateVehicle,onSelectSensor});handlersRef.current={onSelectIncident,onSelectVehicle,onIsolateVehicle,onSelectSensor};
  useEffect(()=>{
   if(!ref.current||mapRef.current)return;
+  maplibregl.setWorkerUrl(new URL('maplibre-gl/dist/maplibre-gl-worker.mjs',import.meta.url).toString());
   const map=new maplibregl.Map({container:ref.current,style:styles[theme],center:[-3.7005,40.4206],zoom:12.8,pitch:20,bearing:-12,attributionControl:false});
   map.addControl(new maplibregl.NavigationControl({showCompass:false}),'bottom-left');
   map.addControl(new maplibregl.AttributionControl({compact:true}),'bottom-right');

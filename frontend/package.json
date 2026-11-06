@@ -12,8 +12,11 @@
     "next": "^15.3.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "maplibre-gl": "^5.5.0",
+    "maplibre-gl": "^6.16.0",
     "lucide-react": "^0.468.0"
+  },
+  "overrides": {
+    "postcss": "8.5.32"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
