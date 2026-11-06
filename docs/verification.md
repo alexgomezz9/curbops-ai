@@ -1,38 +1,90 @@
-# Verification
+# Release verification — 6 November 2026
 
-## Recorded local checks — 5 November 2026
+This record separates local checks, live integrations and operator actions. It is evidence for a portfolio MVP, not a production-security certification.
 
-- Backend: 103 tests passed, including the explicit fleet-review graph tests.
-- Frontend: TypeScript type checking and the production Next.js build passed.
-- The read-only API smoke check passed against an isolated local API instance.
-- Compose configuration parsed successfully; container images were not rebuilt as part of this import.
+## Automated and runtime checks
 
-These checks apply to the imported source version. The latest UI has not received a complete end-to-end browser review. CI results are recorded separately by GitHub Actions.
+| Check | Observed result |
+|---|---|
+| Backend `python -m pytest -q` | **103 passed**, including LangGraph tests; no skipped graph module |
+| Frontend TypeScript / production Next.js build | Passed locally and in the rebuilt Docker image |
+| `npm audit` | **0 vulnerabilities** after remediation, including development dependencies |
+| Docker Compose | API/web built and started; API health check passed |
+| Read-only `scripts/smoke.sh` | Passed against the running Compose API |
+| No-key demo | Separate container with no Google/Groq keys returned `deterministic_demo`, no proposal and three read tools; temporary container was stopped |
+| Markdown render checks | Headings, first/subsequent bullets, escaped emphasis, inline code and HTML escaping passed |
+| Approval-trace render checks | All three proposal tools display decisions; a matching approved-plan fixture displays approval; read-only fixtures do not inherit a decision |
 
-## Local checks
+Backend tests use fake outbound providers. The live checks below are separate observations.
+
+## Live browser and provider evidence
+
+Desktop Chromium, light theme, 1920 × 1080 viewport. Full-page screenshots retain content and map attribution rather than clipping the page to a fixed height.
+
+| Flow | Observed result |
+|---|---|
+| Municipal source refresh | All four configured sources connected: 60 incidents, 350 loading reserves, 357 cameras, 3,591 valid traffic readings; 1,800 geolocated sensor points mapped |
+| Incident investigation | Incident `2026/883` returned nearby observations; geographic join remained read-only |
+| Camera still | A linked 1280 × 720 image loaded through the backend proxy and closed without changing the plan |
+| Gemini proposal | `llm_tool_agent`; actual preparation, audit, comparison and map tools executed; nine route-progress events observed |
+| Read-only fleet review | Actual three-node LangGraph completion events; plan ID/generation unchanged |
+| Vehicle/scenario targeting | V-02/B selected after explicit request; B footer and B evidence matched; composer cleared |
+| Preventative whole-fleet request | Current request retained ALL scope despite previous vehicle/incident focus; all three vehicle outcomes returned |
+| B/C visibility | Provider-backed reference/candidate comparison and map fit exercised without requesting another optimization |
+| Human approval boundary | Pending proposal/button inspected; subsequent read-only requests returned no proposal and showed no approval button. After explicit operator authorization, Swagger UI submitted that exact synthetic plan and returned HTTP 200; a separate mission read confirmed its approved status |
+
+### Synthetic planning results
+
+| Scenario | Road km | Base minutes | Stops |
+|---|---:|---:|---:|
+| A | 50.65 | 113.5 | 15 |
+| B | 29.01 | 67.6 | 15 |
+| Initial C | 29.01 | 67.6 | 15 |
+| Preventative C | 30.37 | 70.0 | 15 |
+
+Initial B/C were identical. A later explicit hypothetical-avoidance request verified **one partial bypass for V-01**, avoiding the buffer around notice `2026/1832` while leaving `2026/1833` unresolved. It added 1.36 km and 2.4 base minutes. V-02 and V-03 had no accepted bypass. Five selected notice buffers remained unresolved across the fleet.
+
+The provider returned the accepted street geometry; the application checked required stops, buffers and budgets. This is not proof of a real closure or observed business savings. Provider checks include cached responses; they are not a count of unique external HTTP requests.
+
+The recorded summary's congested-point counts were checked against the structured C traffic endpoint: V-01 = 13, V-02 = 5, V-03 = 4. These are counts, separate from weighted advisory scores.
+
+One avoidance run completed its tools but returned no readable model summary; the UI reported that explicitly. A subsequent read-only request summarized the existing result without changing the plan. Model prose should be checked against structured outputs: the sensor advisory score is a weighted sum of service levels, not a sensor count.
+
+The recorded desktop demo uses an additional read-only investigation of the existing C result. It emitted actual model/tool and LangGraph events, preserved the plan ID/generation, returned no proposal, and displayed no approval button. Video labels describe those observed interactions; no successful approval is depicted.
+
+The operator subsequently authorized approval of synthetic plan `precaution-d13500a8a`. The request was submitted through the real FastAPI Swagger interface, and `GET /api/mission` confirmed the same ID in `approved_plan` with status `approved` and `simulation: true`. No dispatch was performed. This verifies the live approval endpoint through Swagger; the original frontend approval button was inspected, not clicked in this release check.
+
+## Corrected defects
+
+- Replaced vulnerable MapLibre/PostCSS versions; configured MapLibre 6's ESM worker URL for Next.js. The worker-loading error was reproduced before correction; the corrected map rendered with no JavaScript console errors during the checked flow.
+- The map footer now recognizes a loaded road baseline before any proposal exists.
+- Markdown emphasis and the first item of a list render without stray markers.
+- The execution view recognizes dispatch, preventative-avoidance and rehearsal proposals rather than only dispatch preparation.
+
+## Security and rights
+
+The final frontend tree uses MapLibre **6.16.0**, PostCSS **8.5.32** via an explicit override and Next.js **15.5.29**. The override patches the transitive dependency without introducing a Next.js major migration. `npm audit` reports no known advisories at the time checked; this is not a guarantee against future advisories or application-level flaws.
+
+The private `.env` is excluded and preserved. Historical/current source scans check configured credential values and common key patterns without printing them. Generated browser state, raw traces, caches and private working documents are excluded from deliverables.
+
+The current MIT `LICENSE` file is removed at the owner's request; the README reserves rights for the current version. Historical MIT grants and third-party licences remain unaffected. See [third-party notices](third-party-notices.md).
+
+## Remaining limits
+
+- The successful live approval used Swagger UI rather than the frontend approval button. Matching/stale approval contracts are covered by backend tests, and the UI rendering states are covered by fixture checks.
+- ORS, Groq, Safari/Firefox, a public deployment, concurrent users and sustained failure/load scenarios were not exercised live.
+- No authentication, durable audit or multi-user isolation. The supplied Compose ports are host-published; use a trusted local development machine.
+- Public feeds and routing may change or fail. No universal successful bypass, complete sensor coverage or model-answer accuracy is promised.
+
+## Re-run
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r backend/requirements-dev.txt
-cd frontend
-npm ci
-cd ..
+(cd frontend && npm ci)
 ./scripts/verify.sh
+./scripts/smoke.sh
 ```
 
-The backend suite mocks external providers. Frontend `lint` runs TypeScript type checking; `build` runs the production Next.js compiler. Neither proves that external feeds, model credentials or routing services work.
-
-With the local backend running, `./scripts/smoke.sh` performs read-only health and mission/scenario contract checks. It does not recalculate, approve or dispatch a plan. A successful smoke check does not certify the complete operator workflow.
-
-## Browser checks
-
-Verify the current release on desktop: navigation, map layers, comparison pairs, free-form chat, actual tool/SSE events, source errors and human approval boundaries. Check map focus after a cache refresh and inspect read-only inquiries with a previous proposal present. Keep the fictional fleet, hypothetical incidents and provider base times clearly labelled.
-
-Screenshots and a demo recording are deferred until the next UI version. No visual proof from an older build is presented as evidence for a newer release.
-
-## Dependency audit
-
-On 5 November 2026, `npm audit` reported three affected packages in the committed dependency tree: MapLibre GL (critical), PostCSS (high) and Next.js (moderate, through PostCSS). These are unresolved package advisories, not demonstrated exploitation of this application. A successful build does not clear them.
-
-Remediation requires dependency changes and compatibility testing; it is separate from importing the current project. Run `npm audit` against the installed lockfile to inspect current advisory details. This repository is a local, single-user prototype, not an approved public deployment.
+See the [operator walkthrough](demo.md) and [latest CI](https://github.com/alexgomezz9/curbops-ai/actions/workflows/ci.yml). Screenshots are in [`media/screenshots/`](../media/screenshots/); the 57.76-second MP4 demo uses actual application interactions and preserves the synthetic-data limitations.
