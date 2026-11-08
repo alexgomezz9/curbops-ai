@@ -1,6 +1,6 @@
 # Release verification — 6 November 2026
 
-This record separates local checks, live integrations and operator actions. It is evidence for a portfolio MVP, not a production-security certification.
+This record separates automated checks, live integrations and operator actions for CurbOps AI.
 
 ## Automated and runtime checks
 
@@ -50,7 +50,7 @@ The recorded summary's congested-point counts were checked against the structure
 
 One avoidance run completed its tools but returned no readable model summary; the UI reported that explicitly. A subsequent read-only request summarized the existing result without changing the plan. Model prose should be checked against structured outputs: the sensor advisory score is a weighted sum of service levels, not a sensor count.
 
-The recorded desktop demo uses an additional read-only investigation of the existing C result. It emitted actual model/tool and LangGraph events, preserved the plan ID/generation, returned no proposal, and displayed no approval button. Video labels describe those observed interactions; no successful approval is depicted.
+The observability captures use a read-only investigation of the existing C result. It emitted actual model/tool and LangGraph events, preserved the plan ID/generation, returned no proposal, and displayed no approval button.
 
 The operator subsequently authorized approval of synthetic plan `precaution-d13500a8a`. The request was submitted through the real FastAPI Swagger interface, and `GET /api/mission` confirmed the same ID in `approved_plan` with status `approved` and `simulation: true`. No dispatch was performed. This verifies the live approval endpoint through Swagger; the original frontend approval button was inspected, not clicked in this release check.
 
@@ -60,6 +60,13 @@ The operator subsequently authorized approval of synthetic plan `precaution-d135
 - The map footer now recognizes a loaded road baseline before any proposal exists.
 - Markdown emphasis and the first item of a list render without stray markers.
 - The execution view recognizes dispatch, preventative-avoidance and rehearsal proposals rather than only dispatch preparation.
+- The workflow catalogue now includes all 22 backend tools, including preventative avoidance, incident rehearsal and scenario metrics. The frontend production Docker build and type checks passed after this update. In Chromium, all 22 nodes fit in the expanded light-theme graph; 3 tools were actually used across 4 calls, while 19 remain explicitly uncalled.
+
+## Application screenshots
+
+The README gallery contains eleven real desktop captures: overview, operations map, incident investigation, route comparison, full tool catalogue, fullscreen copilot, City Signals, camera explorer, camera selection on the operations map, incident details on the map and the AI Agent workspace. The execution timeline's four tool outputs are expanded in the workspace capture. The additional read-only investigation preserved plan `precaution-d13500a8a` and generation `3`.
+
+Camera screenshots display successfully loaded municipal stills (1280 × 720 in the explorer and 960 × 576 from the operations map), with source labels and map attribution visible. No camera availability beyond these checked images is implied. Video files are excluded from the published tree.
 
 ## Security and rights
 
@@ -67,7 +74,7 @@ The final frontend tree uses MapLibre **6.16.0**, PostCSS **8.5.32** via an expl
 
 The private `.env` is excluded and preserved. Historical/current source scans check configured credential values and common key patterns without printing them. Generated browser state, raw traces, caches and private working documents are excluded from deliverables.
 
-The current MIT `LICENSE` file is removed at the owner's request; the README reserves rights for the current version. Historical MIT grants and third-party licences remain unaffected. See [third-party notices](third-party-notices.md).
+The source code is published with all rights reserved. Third-party components and data retain their own licences. See [third-party notices](third-party-notices.md).
 
 ## Remaining limits
 
@@ -87,4 +94,4 @@ pip install -r backend/requirements-dev.txt
 ./scripts/smoke.sh
 ```
 
-See the [operator walkthrough](demo.md) and [latest CI](https://github.com/alexgomezz9/curbops-ai/actions/workflows/ci.yml). Screenshots are in [`media/screenshots/`](../media/screenshots/); the 57.76-second MP4 demo uses actual application interactions and preserves the synthetic-data limitations.
+See the [operator guide](demo.md) and [latest CI](https://github.com/alexgomezz9/curbops-ai/actions/workflows/ci.yml). Actual desktop screenshots are in [`media/screenshots/`](../media/screenshots/).

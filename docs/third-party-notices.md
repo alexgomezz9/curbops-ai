@@ -12,6 +12,6 @@ The project's copyright notice applies to CurbOps source code. It does not repla
 | Gemini and Groq | Optional backend model providers with separate account, billing and data-processing terms. No provider keys are distributed with the project. [Gemini terms](https://ai.google.dev/gemini-api/terms), [Groq terms](https://console.groq.com/docs/legal). |
 | Software dependencies | Each dependency retains its own copyright and licence. The application copyright notice does not restrict rights granted by those licences. Package names and exact frontend versions are recorded in `frontend/package-lock.json`. |
 
-Screenshots use the real application and retain map attribution. Fleet vehicles, delivery orders, dispatch decisions and rehearsal obstacles are synthetic. Camera images are periodic municipal stills; the screenshot pack does not redistribute camera frames.
+Screenshots use the real application and retain map attribution. Fleet vehicles, delivery orders, dispatch decisions and rehearsal obstacles are synthetic. Camera images are periodic municipal stills. The camera screenshots reproduce an available Ayuntamiento de Madrid still within the application, retaining its municipal source label; map credits remain visible.
 
 No affiliation with or endorsement by Ayuntamiento de Madrid, OpenStreetMap or the listed providers is claimed.

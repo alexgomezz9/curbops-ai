@@ -1,10 +1,10 @@
-# Reproduce the operator demo
+# Operator guide
 
 Use a local single-user instance. The sequence prepares synthetic proposals and never dispatches a vehicle. Public provider availability and municipal snapshots vary; an unsuccessful bypass is a valid outcome.
 
 ## Start
 
-Follow the [Quick Start](../README.md#quick-start), open `http://localhost:3000`, and select the light theme. Do not replace an existing private `.env` with an example file. For the real agent, configure Gemini or Groq in the backend; the manual road engine works without a model key.
+Follow [Run locally](../README.md#run-locally), open `http://localhost:3000`, and select the light theme. Do not replace an existing private `.env` with an example file. For the real agent, configure Gemini or Groq in the backend; the manual road engine works without a model key.
 
 1. **Load original routes.** This creates road scenario A without a proposal.
 2. **Load city data.** Check individual source results and downloaded/observed timestamps. A failed feed stays unavailable.

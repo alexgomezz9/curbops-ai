@@ -13,6 +13,7 @@ node_modules/
 out/
 dist/
 coverage/
+/media/*.mp4
 *.tsbuildinfo
 *.log
 .DS_Store
