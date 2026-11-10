@@ -1,226 +1,151 @@
-# CurbOps AI · Madrid fleet operations
+# CurbOps AI | Agentic Urban Fleet Operations
 
 [![CI](https://github.com/alexgomezz9/curbops-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/alexgomezz9/curbops-ai/actions/workflows/ci.yml)
 
-**A dispatch workspace for investigating Madrid road notices and comparing street routes for a simulated delivery fleet.**
+**An agentic AI workspace for last-mile fleet dispatch. Investigate Madrid road notices, compare street routes and review the evidence before approving a simulated plan.**
 
-[Run the demo](#run-locally) · [Explore the workspace](#inside-curbops) · [Architecture](#architecture) · [Verification](docs/verification.md)
+LangChain · LangGraph · FastAPI · Next.js · MapLibre · OSRM
 
-![Madrid dispatch overview with three colour-coded street routes and the simulated fleet roster](media/screenshots/01-overview.png)
+[Run the demo](#run-locally) · [See a route comparison](#routing-and-abc) · [Architecture](#architecture) · [Verification](docs/verification.md) · [Álex Gómez](https://github.com/alexgomezz9)
 
-[View the mobile layout](media/screenshots/12-overview-mobile.png)
+![CurbOps dispatch workspace showing three colour-coded street routes, the Madrid map and the fleet roster](media/screenshots/01-overview.png)
 
-Open a notice, inspect the nearby sensors and cameras, and see which routes pass through the area. The copilot records each tool it calls. Operators compare the original dispatch with a proposed plan before deciding whether to approve it.
-
-Built by [Álex Gómez](https://github.com/alexgomezz9). The local demo starts with `make demo` and needs no model key.
+| Agent tool catalogue | Simulated mission | Backend verification |
+|:---:|:---:|:---:|
+| **22 typed tools** | **3 vans · 15 stops** | **103 passing tests** in the recorded run |
 
 ## Inside CurbOps
 
-### Operations Map — work directly with the city
+1. **Investigate.** Select a Madrid road notice and find nearby municipal sensors, camera stills and loading zones. The evidence panel keeps the source, distance and available timestamps visible.
+2. **Prepare.** Ask the copilot for a route proposal or run the deterministic road engine directly. The planner uses road-network costs, vehicle capacity and exactly-once delivery assignment.
+3. **Compare.** Overlay the reference and candidate routes for the fleet or one van. Inspect distance, base driving time and stop allocation before accepting a trade-off.
+4. **Review.** Inspect the executed tools and their outputs in the trace. The operator approves a specific, current proposal through a separate API action.
 
-A Madrid street map and a free-form copilot share the workspace. Select a van, inspect its stops and nearby evidence, switch A/B/C scenarios, control map layers or ask the agent to focus the map for you. Fullscreen keeps both the map and the conversation visible.
+<details>
+<summary><strong>Explore the workspace gallery</strong></summary>
 
-![Street routes and map copilot](media/screenshots/02-operations-map.png)
-
-![Fullscreen operations map with an editable agent conversation](media/screenshots/06-fullscreen-copilot.png)
-
-### City Signals — explore municipal observations
-
-Inspect sampled traffic measurements, service-level distributions, sensor locations and source health. Downloads are opt-in; timestamps and coverage stay visible. A second successful snapshot enables a comparison of the same sensors over time.
-
-![City Signals sensor map, distributions and source diagnostics](media/screenshots/07-city-signals.png)
-
-### Cameras — inspect the street context
-
-Search Madrid's municipal camera catalogue, select a location and open its latest available periodic still. The image is fetched through a backend proxy restricted to published municipal sources.
-
-![Municipal camera explorer with a real still image](media/screenshots/08-camera-explorer.png)
-
-![Camera selection and street context on the operations map](media/screenshots/09-map-camera.png)
-
-### Incident Intelligence — connect a notice to nearby evidence
-
-Open a municipal notice and inspect geographically nearby sensors, cameras and loading reserves. The map preserves the notice's source and details; the investigation leaves existing plans unchanged.
-
-![Municipal incident investigation with nearby evidence](media/screenshots/03-agent-investigation.png)
-
-![Incident details on the operations map](media/screenshots/10-map-incident.png)
-
-### Route comparison — inspect what changed
-
-Compare original assignment **A**, road-cost optimization **B** and risk-aware candidate **C** using the same routing fidelity. Focus one vehicle, inspect the reference and candidate geometries, and review distance, base driving time and stop allocation.
-
-An explicit preventative-bypass request asks the provider for alternative street geometry and checks hypothetical notice buffers, required stops and detour budgets. Each vehicle gets an outcome; unsuccessful alternatives remain visible.
-
-![B/C comparison showing a provider-verified hypothetical partial bypass](media/screenshots/04-route-optimization.png)
-
-### AI Agent — follow every executed tool
-
-The agent workspace combines free-form requests, an operational briefing, model-call telemetry and an execution timeline. Open individual tool outputs or expand the workflow graph to inspect the complete tool catalogue. Executed and uncalled tools have distinct states.
-
-![AI Agent workspace with an actual investigation and tool trace](media/screenshots/11-agent-workspace.png)
-
-![Expanded workflow showing all 22 available tools and their observed execution states](media/screenshots/05-agent-observability.png)
-
-All screenshots come from the running application in the light theme. The fleet and delivery orders are synthetic. Municipal observations retain their source and download information.
-
-## 22 tools, one copilot
-
-The model selects typed, allowlisted tools. Python services perform the calculations, road providers return street geometry, and SSE events carry the observed actions and results into the UI. The agent can prepare a proposal; approval belongs to the operator.
-
-### Read the city and the fleet
-
-| Tool | What it does |
+| Operations Map | Incident Intelligence |
 |---|---|
-| `inspect_fleet` | Reads the fictional vehicles, deliveries and original assignment. |
-| `get_active_incidents` | Lists mapped notices with their origin and severity. |
-| `inspect_loading_reserves` | Reads loading-zone inventory and locations. |
-| `inspect_traffic_measurements` | Summarizes loaded municipal point measurements and coverage. |
-| `inspect_incident_evidence` | Finds sensors, cameras and loading reserves near a notice. |
-| `inspect_data_provenance` | Reports source origin, record counts and available timestamps. |
-| `inspect_vehicle_corridor` | Inspects notices along a vehicle's road polyline and their temporal status. |
-| `inspect_incident_fleet_corridor` | Finds fleet routes near a selected notice. |
-| `inspect_route_traffic_measurements` | Reads sampled sensor observations near a vehicle's street route. |
-| `investigate_fleet_disruptions` | Runs a read-only fleet review and prepares map focus/highlights. |
+| [![Operations Map with street routes and copilot](media/screenshots/02-operations-map.png)](media/screenshots/02-operations-map.png) | [![Evidence inspector showing observations near a Madrid notice](media/screenshots/03-agent-investigation.png)](media/screenshots/03-agent-investigation.png) |
+| [Fullscreen copilot](media/screenshots/06-fullscreen-copilot.png) | [Notice on the map](media/screenshots/10-map-incident.png) |
+| **City Signals** | **Municipal Cameras** |
+| [![Sensor map, service-level distribution and source diagnostics](media/screenshots/07-city-signals.png)](media/screenshots/07-city-signals.png) | [![Camera catalogue with a municipal still image](media/screenshots/08-camera-explorer.png)](media/screenshots/08-camera-explorer.png) |
+| [Mobile layout](media/screenshots/12-overview-mobile.png) | [Camera on the map](media/screenshots/09-map-camera.png) |
 
-### Prepare and explain routes
-
-| Tool | What it does |
-|---|---|
-| `prepare_dispatch_proposal` | Prepares an unapproved road-based delivery assignment and visit order. |
-| `prepare_precautionary_avoidance` | Searches for provider-backed hypothetical bypasses for one van or the whole fleet. |
-| `rehearse_incident_response` | Creates an explicitly requested synthetic obstacle rehearsal and prepares B/C. |
-| `inspect_dispatch_decision` | Audits the objective, stop moves and incident-proximity counterfactual. |
-| `inspect_vehicle_decision` | Explains a vehicle's A/B/C allocation, road legs and evidence. |
-| `inspect_incident_route_impact` | Inspects street legs near one notice and its modelled counterfactual. |
-| `compare_dispatch_scenarios` | Compares A/B, B/C or A/C metrics and stop assignments without recalculation. |
-
-### Act on the map
-
-| Tool | What it does |
-|---|---|
-| `show_vehicle_on_map` | Selects and focuses a vehicle. |
-| `show_incident_on_map` | Selects and focuses a notice. |
-| `show_scenario_on_map` | Switches the displayed A/B/C scenario. |
-| `show_comparison_on_map` | Opens a compatible scenario comparison. |
-| `highlight_vehicle_incidents_on_map` | Highlights geographically nearby notices along a selected route. |
-
-### Agent execution and LangGraph
-
-LangChain's `create_agent` provides the model/tool loop using LangGraph internally. A separate deterministic fleet-review graph performs **inspect road corridors → prioritize evidence → prepare map actions**. The trace shows completed node events, tool outputs and model usage when supplied by the provider.
-
-Browser conversation history is bounded and passed explicitly with the current map context. Backend state is authoritative for proposals and approvals. Gemini and Groq are supported; without model credentials, the labelled deterministic demo engine exercises local tools. [Evaluation cases](docs/evaluation.md)
+</details>
 
 ## Routing and A/B/C
 
-The optimizer uses a provider road-time/distance matrix and bounded best-improvement stop moves, enforcing capacity and exactly-once delivery assignment. C ranks a bounded set of candidates using time-eligible notice proximity on road polylines. Failed matrix or route requests do not publish a straight-line fallback.
+The road engine builds an OSRM time and distance matrix, then searches a bounded set of stop moves and visit orders. **A** preserves the original dispatch. **B** optimizes road cost. **C** accounts for eligible notice proximity or evaluates a specifically requested hypothetical bypass. The comparison uses street geometry in each scenario.
 
-| Scenario | Meaning |
-|---|---|
-| **A — original** | The fictional fleet's original delivery allocation, routed on streets once loaded. |
-| **B — road-cost optimized** | Assignment and stop order optimized without incident penalties. |
-| **C — risk-aware** | Candidate ranked with approximate incident proximity, or an explicitly requested preventative alternative. |
+![Route comparison with reference and candidate road geometry and a vehicle-level detour explanation](media/screenshots/04-route-optimization.png)
 
-Three synthetic vans serve 15 synthetic orders. One run on **6 November 2026** produced the following modelled results using OSRM roads and a downloaded Madrid snapshot:
+One recorded OSRM run on **6 November 2026** reduced modelled road distance from **50.65 km to 29.01 km** while keeping all 15 stops. A subsequent request accepted a partial hypothetical bypass for V-01 with an additional **1.36 km and 2.4 base minutes**. The other two vans kept their routes.
 
 | Scenario | Road distance | Base driving time | Stops |
 |---|---:|---:|---:|
-| A | 50.65 km | 113.5 min | 15 |
-| B | 29.01 km | 67.6 min | 15 |
-| Initial C | 29.01 km | 67.6 min | 15 |
-| C after a preventative request | 30.37 km | 70.0 min | 15 |
+| A · Original dispatch | 50.65 km | 113.5 min | 15 |
+| B · Road-cost optimization | 29.01 km | 67.6 min | 15 |
+| C · Initial risk-aware candidate | 29.01 km | 67.6 min | 15 |
+| C · After the explicit bypass request | 30.37 km | 70.0 min | 15 |
 
-B and initial C were identical. The later request accepted one **partial hypothetical bypass for V-01**, adding 1.36 km and 2.4 base minutes; V-02/V-03 stayed unchanged. Some notice buffers remained unresolved. These are modelled scenario outcomes, not observed business savings or a globally optimal solution. [Recorded checks and outcomes](docs/verification.md)
+The application checked provider-returned geometry against required stops, notice buffers and detour budgets. Some buffers remained unresolved. Distances and times are modelled results for a synthetic fleet. [Recorded scenario results](docs/verification.md) · [Routing provider budgets](docs/API_BUDGET.md)
 
-OSRM is the default noncommercial demo provider; ORS is optional. [Provider usage and budgets](docs/API_BUDGET.md)
+## Agentic AI and tool observability
+
+LangChain's `create_agent`, backed by LangGraph, runs the LLM tool-calling loop. A separate deterministic LangGraph workflow inspects fleet corridors, prioritizes evidence and prepares map actions. FastAPI streams observed tool and graph events over **Server-Sent Events (SSE)** so an operator can follow what the system actually ran.
+
+[![Expanded workflow trace showing completed tool calls and tools available to the agent](media/screenshots/05-agent-observability.png)](media/screenshots/05-agent-observability.png)
+
+| AI engineering | Forward deployed engineering (FDE) |
+|---|---|
+| **LLM orchestration.** Typed, allowlisted tools for evidence, route proposals and map actions. Gemini and Groq are optional model providers. | **Operator workflow.** Free-form investigation, map focus, A/B/C comparison and human approval are available in one dispatch workspace. |
+| **Agent observability.** Inspect tool outputs, graph progress and model usage when the provider reports it. | **Geospatial integration.** Madrid Open Data joins municipal notices, sampled traffic readings, camera stills and loading-zone inventory to street routes. |
+| **Human-in-the-loop guardrails.** The backend owns plan state and validates plan identity and freshness at approval. Read-only reviews preserve the current plan. | **Reproducible delivery.** Docker Compose, a demo engine that runs without credentials, and documented checks for browser, provider and approval flows. |
+
+[Agent workspace screenshot](media/screenshots/11-agent-workspace.png) · [Evaluation cases](docs/evaluation.md) · [Release verification](docs/verification.md)
+
+### 22 tools, one copilot
+
+<details>
+<summary><strong>View the tool catalogue</strong></summary>
+
+| Group | Tools |
+|---|---|
+| Fleet and source context | `inspect_fleet`, `get_active_incidents`, `inspect_loading_reserves`, `inspect_traffic_measurements`, `inspect_data_provenance` |
+| Geospatial investigation | `inspect_incident_evidence`, `inspect_vehicle_corridor`, `inspect_incident_fleet_corridor`, `inspect_route_traffic_measurements`, `investigate_fleet_disruptions` |
+| Planning and rehearsal | `prepare_dispatch_proposal`, `prepare_precautionary_avoidance`, `rehearse_incident_response` |
+| Decision audit | `inspect_dispatch_decision`, `inspect_vehicle_decision`, `inspect_incident_route_impact`, `compare_dispatch_scenarios` |
+| Map actions | `show_vehicle_on_map`, `show_incident_on_map`, `show_scenario_on_map`, `show_comparison_on_map`, `highlight_vehicle_incidents_on_map` |
+
+</details>
 
 ## Architecture
 
-```mermaid
+~~~mermaid
 flowchart LR
-    Operator[Operator] --> UI[Next.js / MapLibre workspace]
-    UI --> API[FastAPI / Pydantic]
-    API --> Agent[LangChain tool agent]
-    Agent --> Read[Municipal and route evidence]
-    Agent --> Plan[Deterministic planning services]
-    Read --> Madrid[Madrid Open Data]
-    Plan --> Router[OSRM / optional ORS]
-    API --> State[Single-user in-memory state]
-    API -->|Observed SSE events| UI
-    Operator -->|Explicit approval| API
-```
+    Operator[Dispatch operator] --> UI[Next.js and MapLibre]
+    UI --> API[FastAPI and Pydantic]
+    API --> Agent[LangChain and LangGraph]
+    Agent --> Tools[Typed investigation and planning tools]
+    Tools --> Evidence[Madrid Open Data]
+    Tools --> Planner[Deterministic route planner]
+    Planner --> Roads[OSRM or ORS]
+    API --> State[Scenario and proposal state]
+    API -->|Observed events via SSE| UI
+    UI -->|Explicit operator approval| API
+~~~
 
-**Frontend:** Next.js 15 · React 19 · TypeScript · MapLibre GL JS 6
+| Layer | Stack |
+|---|---|
+| Workspace | Next.js 15, React 19, TypeScript, MapLibre GL JS 6 |
+| API and agent | Python, FastAPI, Pydantic, HTTPX, LangChain, LangGraph |
+| External services | Madrid Open Data, OpenFreeMap, OSRM or ORS, optional Gemini or Groq |
+| Local runtime | Docker Compose with a single-user in-memory store |
 
-**Backend:** Python · FastAPI · Pydantic · HTTPX · LangChain · LangGraph
-
-**Services:** Madrid Open Data · OpenFreeMap / OpenStreetMap · OSRM / ORS · Gemini / Groq
-
-**Runtime:** Docker Compose · single-user in-memory state
-
-[Architecture details](docs/architecture.md)
+[Architecture details](docs/architecture.md) · [Agent runner](backend/app/agents/runner.py) · [Fleet review graph](backend/app/services/fleet_review_graph.py) · [Road planner](backend/app/services/road_plans.py)
 
 ## Run locally
 
-Requirements: Docker with Compose v2.24 or later, and free local ports 3000 and 8000. Network access is needed to build the images and for street tiles, routing and municipal feeds.
+Install Docker with Compose v2.24 or later and free local ports 3000 and 8000. The demo starts with a synthetic fleet and works without model credentials or an `.env` file. Street tiles, routing and municipal feeds use network access.
 
-```bash
+~~~bash
 git clone https://github.com/alexgomezz9/curbops-ai.git
 cd curbops-ai
 make demo
-```
+~~~
 
-Open **http://localhost:3000**. The demo starts with a simulated fleet and needs no keys or `.env` file. `make demo` waits for both services, then checks the web entry point and three read-only API endpoints.
+Open [localhost:3000](http://localhost:3000). Select **Load street routes** for scenario A. To include municipal evidence, choose **Fetch Madrid data** before preparing routes. In **Operations Map**, choose **Advanced actions → Recalculate with road engine (no LLM)** to open the B/C comparison. Use **Run fleet review** on Overview to see the local tool trace.
 
-1. Select **Load street routes** to calculate the original dispatch (A).
-2. Open the **Operations Map** and choose **Advanced actions → Recalculate with road engine (no LLM)** to prepare B/C.
-3. Use **Fetch Madrid data** to download municipal feeds, or **Run fleet review** to see a read-only investigation and its tool trace.
-
-```bash
-make status    # List the two services
-make logs      # Recent service output
-make smoke     # Check a running demo
+~~~bash
+make smoke     # Check the running web and API
 make down      # Stop the stack
-```
+~~~
 
-On Windows without GNU Make, run `docker compose up --build --wait` and `docker compose down` directly. The Compose ports are bound to loopback for a local, single-user demo. [Operator guide](docs/demo.md)
+On Windows without GNU Make, use `docker compose up --build --wait` and `docker compose down`. [Operator guide](docs/demo.md)
 
-### Connect Gemini
+<details>
+<summary><strong>Connect a model or run the test suite</strong></summary>
 
-For model or routing credentials, create a private `.env` at the repository root using `.env.example` as a reference. Keep any existing file. For Gemini:
+Set `AGENT_PROVIDER=google`, `GOOGLE_API_KEY` and `GEMINI_MODEL` in a private root `.env`, using [the template](.env.example) for reference. For Groq, set `AGENT_PROVIDER=groq`, `GROQ_API_KEY` and `GROQ_MODEL`. For ORS routing, set `ROUTING_PROVIDER=ors` and `ORS_API_KEY`. Apply backend environment changes with `docker compose up -d --force-recreate api`.
 
-```dotenv
-AGENT_PROVIDER=google
-GOOGLE_API_KEY=your_key_here
-GEMINI_MODEL=your_available_gemini_model
-```
+With Python 3.12 and Node.js 22, activate a Python virtual environment and run these commands from the repository root.
 
-```bash
-docker compose up -d --force-recreate api
-```
-
-Use a model available to your project. Groq is an alternative through `AGENT_PROVIDER=groq`, `GROQ_API_KEY` and `GROQ_MODEL`. ORS uses `ROUTING_PROVIDER=ors` and `ORS_API_KEY`; the default is `ROUTING_PROVIDER=osrm_demo`. Credentials stay on the backend.
-
-### Verify
-
-With Python 3.12 and Node.js 22, install `backend/requirements-dev.txt` in an activated virtual environment and run `npm ci` in `frontend/`, then:
-
-```bash
+~~~bash
+python -m pip install -r backend/requirements-dev.txt
+npm --prefix frontend ci
 make verify
-```
+~~~
 
-The backend tests mock outbound providers. CI also builds the Compose demo and checks its entry points. For a native API instance, run `python scripts/smoke.py --web-url http://localhost:3000`. [Verification record](docs/verification.md)
+CI runs the backend tests, TypeScript checks, production build and Compose smoke checks. [Verification record](docs/verification.md)
+
+</details>
 
 ## Data and operating boundaries
 
-- Vehicles, orders, rehearsal obstacles and approval decisions are **synthetic**.
-- Municipal point notices describe geographic context; they do not establish confirmed closed road segments.
-- Sensor readings describe sampled points. They do not provide live route ETAs or complete city coverage.
-- Camera images are periodic stills; loading reserves are an inventory without real-time occupancy.
-- The agent cannot approve or dispatch. Approval requires a matching, non-stale pending proposal.
-- State is single-user and in memory. Public multi-user use requires authentication, isolated state and durable audit.
+The fleet, orders, rehearsals and dispatch approvals are synthetic. Municipal road notices describe geographic proximity. Sensor readings are point observations. Camera images are periodic stills and loading zones are an inventory. Public multi-user deployment would require authentication, isolated state and durable audit records.
 
-Municipal data: **Ayuntamiento de Madrid**. Map data: **© OpenStreetMap contributors**, ODbL; tiles/styles via OpenFreeMap. Camera stills and map screenshots retain their source attribution. [Data catalogue](docs/data-sources.md) · [Third-party notices](docs/third-party-notices.md)
+Municipal data comes from **Ayuntamiento de Madrid**. Map data is **© OpenStreetMap contributors**, ODbL, with tiles and styles via OpenFreeMap. [Data catalogue](docs/data-sources.md) · [Third-party notices](docs/third-party-notices.md)
 
 ## Rights
 
