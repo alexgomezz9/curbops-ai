@@ -1,21 +1,22 @@
 'use client';
 
 import {useCallback,useEffect,useLayoutEffect,useRef,useState} from 'react';
-import type {ReactNode} from 'react';
+import type {ComponentProps} from 'react';
 import {
   GitCompareArrows,Activity,ArrowRight,BrainCircuit,Check,CheckCircle2,ChevronRight,Clock3,
-  Database,Download,ExternalLink,Layers3,LoaderCircle,MapPinned,Navigation2,Radio,BarChart3,
-  RefreshCw,RotateCcw,Route,Send,ShieldCheck,Sparkles,Truck,X,Sun,Moon,PanelLeftClose,PanelLeftOpen,ScanSearch,Camera as CameraIcon,Maximize2,Minimize2,
+  Database,Download,Layers3,LoaderCircle,MapPinned,Radio,
+  RefreshCw,Route,Send,X,Sun,Moon,PanelLeftClose,PanelLeftOpen,ScanSearch,Camera as CameraIcon,Maximize2,Minimize2,
 } from 'lucide-react';
 import MapPanel from './map-panel';
+import MissionOverview from './mission-overview';
 import BriefingMarkdown from './briefing-markdown';
 import AgentRunVisual from './agent-run-visual';
 import CitySignalsPage from './city-signals';
 import IncidentIntelligence from './incident-intelligence';
 import CameraHub from './camera-hub';
-import DecisionAudit from './decision-audit';
 import RouteDecisionInspector from './route-decision-inspector';
 import {api} from '@/lib/api';
+import {fleetColor} from '@/lib/fleet-colors';
 import type {DecisionAuditData,AgentEvent,AgentResponse,CitySignals,Incident,LayerSelection,MissionSnapshot,IncidentEvidence,CityChanges,ScenarioBundle,ScenarioId,ComparisonId,AgentMapAction,DispatchPlan,VehicleCorridor} from '@/lib/types';
 import preview from '@/public/demo-snapshot.json';
 
@@ -23,6 +24,7 @@ const seeded=preview as unknown as MissionSnapshot;
 type View='overview'|'map'|'agent'|'signals'|'intel'|'cameras';
 type Theme='dark'|'light';
 type ChatTurn={id:number;role:'user'|'assistant';content:string;mode?:string};
+const FLEET_REVIEW='Inspect all fleet street routes. Identify nearby notices and municipal sensors, focus the most relevant vehicle, and distinguish observed data from geographic proximity. Do not replan.';
 const SUGGESTIONS=[
   'Analyze incidents affecting our deliveries and prepare an alternative dispatch plan.',
   'Inspect all traffic incidents and explain their operational impact.',
@@ -35,9 +37,6 @@ function exportJSON(data:unknown){
   const url=URL.createObjectURL(blob);const link=document.createElement('a');
   link.href=url;link.download='curbops-briefing.json';link.click();URL.revokeObjectURL(url);
 }
-function CardMetric({label,value,unit,icon,detail}:{label:string;value:string;unit:string;icon:ReactNode;detail?:string}){
-  return <div className="v2Metric"><div className="v2MetricHead"><span>{label}</span>{icon}</div><div className="v2MetricNumber">{value}<small>{unit}</small></div>{detail&&<div className="v2MetricHint">{detail}</div>}</div>;
-}
 function Comparison({base,current,comparable}:{base:MissionSnapshot['original_plan']['metrics'];current:MissionSnapshot['original_plan']['metrics'];comparable:boolean}){
   if(!comparable)return <div className="v3UnmatchedRoutes"><strong>Road-network preview</strong><p>The proposed geometry uses a road routing service, while the baseline is schematic. Comparing their totals would be misleading.</p><div><span>Proposed route length</span><strong>{number(current.distance_km)} km</strong></div><div><span>Proposed travel estimate</span><strong>{number(current.travel_minutes)} min</strong></div></div>;
   return <div className="v2CompareGrid">
@@ -47,32 +46,27 @@ function Comparison({base,current,comparable}:{base:MissionSnapshot['original_pl
   </div>;
 }
 
-function PlanButtons({showProposal,hasProposal,onSelect}:{showProposal:boolean;hasProposal:boolean;onSelect:(v:boolean)=>void}){
-  return <div className="v2PlanSwitch"><button className={!showProposal?'selected':''} onClick={()=>onSelect(false)}>Original</button><button className={showProposal?'selected':''} disabled={!hasProposal} onClick={()=>onSelect(true)}>Proposed</button></div>;
-}
-function MapCanvas({snapshot,plan,referencePlan,isolatedVehicle,onIsolateVehicle,layers,selectedIncident,onSelectIncident,selectedVehicle,onSelectVehicle,compare,theme,traffic,signalMode,cameraFocusId,onCloseCamera,sensorFocusId,onSelectSensor,routeFocusToken,comparisonUi,comparisonMix,highlightIncidentIds,avoidedIncidentIds,focusSensorIds,evidence,intelMode,changes}:{
-  snapshot:MissionSnapshot;plan:MissionSnapshot['original_plan'];referencePlan?:DispatchPlan|null;isolatedVehicle?:boolean;onIsolateVehicle?:(id:string)=>void;layers:LayerSelection;
-  selectedIncident:string|null;onSelectIncident:(id:string)=>void;selectedVehicle:string|null;
-  onSelectVehicle:(id:string|null)=>void;compare:boolean;theme:Theme;traffic?:CitySignals|null;signalMode?:boolean;cameraFocusId?:string|null;onCloseCamera?:()=>void;sensorFocusId?:string|null;onSelectSensor?:(id:string|null)=>void;routeFocusToken?:number;comparisonUi?:boolean;comparisonMix?:number;highlightIncidentIds?:string[];avoidedIncidentIds?:string[];focusSensorIds?:string[];evidence?:IncidentEvidence|null;intelMode?:boolean;changes?:CityChanges|null;
-}){
-  return <div className="v2Map"><MapPanel key={theme} theme={theme} snapshot={snapshot} activePlan={plan} referencePlan={referencePlan} isolatedVehicle={isolatedVehicle} onIsolateVehicle={onIsolateVehicle} layers={layers} selectedIncident={selectedIncident} onSelectIncident={onSelectIncident} selectedVehicle={selectedVehicle} onSelectVehicle={onSelectVehicle} compare={compare} traffic={traffic} signalMode={signalMode} cameraFocusId={cameraFocusId} onCloseCamera={onCloseCamera} sensorFocusId={sensorFocusId} onSelectSensor={onSelectSensor} routeFocusToken={routeFocusToken} comparisonUi={comparisonUi} comparisonMix={comparisonMix} highlightIncidentIds={highlightIncidentIds} avoidedIncidentIds={avoidedIncidentIds} focusSensorIds={focusSensorIds} evidence={evidence} intelMode={intelMode} changes={changes}/></div>;
+type MapCanvasProps = Omit<ComponentProps<typeof MapPanel>, 'activePlan'> & { plan: DispatchPlan };
+
+function MapCanvas({ plan, ...props }: MapCanvasProps) {
+  return <div className="v2Map"><MapPanel key={props.theme} activePlan={plan} {...props}/></div>;
 }
 export default function Dashboard(){
   const [snapshot,setSnapshot]=useState<MissionSnapshot>(seeded);
   const [backendUp,setBackendUp]=useState(false);
+  const [checkingBackend,setCheckingBackend]=useState(true);
   const [roadAvailable,setRoadAvailable]=useState(false);
   const [roadProvider,setRoadProvider]=useState('');
   const [busy,setBusy]=useState<'agent'|'replan'|'approve'|'refresh'|'reset'|null>(null);
-  const [view,setView]=useState<View>('map');
+  const [view,setView]=useState<View>('overview');
   const [navCollapsed,setNavCollapsed]=useState(false);
   const [signals,setSignals]=useState<CitySignals|null>(null);
   const [changes,setChanges]=useState<CityChanges|null>(null);
   const [autoCityRefresh,setAutoCityRefresh]=useState(false);
   const [sourceBusy,setSourceBusy]=useState(false);
   const sourceRefreshLock=useRef(false);
-  const [nowMs,setNowMs]=useState(0);
   const [refreshReport,setRefreshReport]=useState<Record<string,{ok:boolean;count?:number;error?:string}>|null>(null);
-  const [theme,setTheme]=useState<Theme>('dark');
+  const [theme,setTheme]=useState<Theme>('light');
   const [fleetOpen,setFleetOpen]=useState(false);
   const [cameraFocusId,setCameraFocusId]=useState<string|null>(null);
   const [sensorFocusId,setSensorFocusId]=useState<string|null>(null);
@@ -124,24 +118,22 @@ export default function Dashboard(){
       const mission=await api.mission();setSnapshot(mission);setBackendUp(true);
       const next=await api.scenarios();setScenarioBundle(next);
     }catch{setBackendUp(false);}
+    finally{setCheckingBackend(false);}
   },[]);
   useEffect(()=>{
     void reload();
     void api.signals().then(setSignals).catch(()=>setSignals(null));
     void api.changes().then(setChanges).catch(()=>setChanges(null));
     void api.routingAvailability().then(r=>{setRoadAvailable(r.enabled);setRoadProvider(r.provider);}).catch(()=>setRoadAvailable(false));
-    setNowMs(Date.now());
-    const tick=window.setInterval(()=>setNowMs(Date.now()),30_000);
-    return ()=>window.clearInterval(tick);
   },[reload]);
   // Poll the OWN backend cache, not the Madrid service, to update the operator's view.
   useEffect(()=>{
-    if(!backendUp)return;
     const timer=window.setInterval(()=>{
       void reload();
       void api.signals().then(setSignals).catch(()=>{});
       void api.changes().then(setChanges).catch(()=>{});
-    },60_000);
+      if(!backendUp)void api.routingAvailability().then(r=>{setRoadAvailable(r.enabled);setRoadProvider(r.provider);}).catch(()=>setRoadAvailable(false));
+    },backendUp?60_000:15_000);
     return ()=>window.clearInterval(timer);
   },[backendUp,reload]);
   useEffect(()=>{const saved=window.localStorage.getItem('curbops-theme');if(saved==='light'||saved==='dark')setTheme(saved);},[]);
@@ -177,7 +169,6 @@ export default function Dashboard(){
   const rehearsal=snapshot.incidents.find(i=>i.id==='SIM-ROADWORKS')||null;
   const eligibleEventCount=(scenarioBundle?.temporal_evidence||[]).filter(i=>['active','synthetic_scenario'].includes(i.temporal_status)).length;
   const incident=snapshot.incidents.find(x=>x.id===selectedIncident)||null;
-  const activeMode=snapshot.source_mode==='live'?'Live sources + synthetic fleet':'Synthetic demonstration';
   const baselineReady=snapshot.original_plan.routes.length>0&&snapshot.original_plan.routes.every(r=>r.fidelity==='road_network');
   const roadReady=baselineReady&&Boolean(proposed?.routes.length)&&proposed!.routes.every(r=>r.fidelity==='road_network');
   const mapRoadReady=mapPlan.routes.length>0&&mapPlan.routes.every(r=>r.fidelity==='road_network');
@@ -187,10 +178,6 @@ export default function Dashboard(){
     void api.decisionAudit().then(d=>{if(active&&d.proposal_id===proposed.id)setRiskSummary(d.risk_attribution||null);}).catch(()=>{if(active)setRiskSummary(null);});
     return ()=>{active=false;};
   },[roadReady,proposed?.id]);
-  const routeComparable=roadReady&&current.routes.every(r=>r.fidelity==='road_network');
-  const delta=routeComparable?snapshot.original_plan.metrics.distance_km-current.metrics.distance_km:0;
-  const fetchAgeMinutes=signals?.fetched_at&&nowMs?Math.max(0,Math.floor((nowMs-new Date(signals.fetched_at).getTime())/60_000)):null;
-  const cityState=!signals?.fetched_at?'No municipal snapshot':fetchAgeMinutes!==null&&fetchAgeMinutes<=10?'Recently fetched':'Cached / older snapshot';
 
   function chooseScenario(id:ScenarioId){
     // Choosing an isolated scenario closes the overlay; no implicit A↔C inversion.
@@ -474,6 +461,15 @@ export default function Dashboard(){
     setFleetOpen(Boolean(vehicleId));setRouteFocusToken(x=>x+1);setView('map');
   }
 
+  function openOverviewMap(vehicleId?:string|null){
+    chooseScenario('A');
+    setSelectedIncident(null);
+    setSelectedVehicle(vehicleId??null);
+    setIsolatedVehicle(false);
+    setInspectorVisible(true);
+    setView('map');
+  }
+
   function showIncident(id:string){setSelectedIncident(id);setView('intel');}
   function highlightIncidentEvidence(id:string){
     setSelectedIncident(id);setSelectedVehicle(null);setLayers(prev=>({...prev,incidents:false}));
@@ -482,50 +478,49 @@ export default function Dashboard(){
 
 
   return <div className="v2Shell v5Shell" data-theme={theme}>
+    <a className="workspaceSkip" href="#workspace-main">Skip to workspace</a>
     <div className={`v5Workspace ${navCollapsed?'nav-collapsed':''}`}>
       <aside className="v5Sidebar" aria-label="Workspace navigation">
-        <div className="v5SidebarBrand"><span className="v2LogoMark">C.</span><div className="v5BrandText"><strong>CURB<span>OPS</span></strong><small>OPERATIONS INTELLIGENCE</small></div></div>
+        <div className="v5SidebarBrand"><span className="workspaceMark" aria-hidden="true"/><div className="v5BrandText"><strong>CURB<span>OPS</span></strong><small>FLEET OPERATIONS</small></div></div>
         <div className="v5SidebarDivider"/>
         <span className="v5SidebarLabel">WORKSPACE</span>
         <nav className="v5SideNav" aria-label="Main views">
-          <button title="Overview" className={view==='overview'?'active':''} onClick={()=>setView('overview')}><Activity size={18}/><span>Overview</span></button>
-          <button title="Operations Map" className={view==='map'?'active':''} onClick={()=>{setView('map');setRouteFocusToken(x=>x+1);}}><MapPinned size={18}/><span>Operations Map</span></button>
-          <button title="City Signals" className={view==='signals'?'active':''} onClick={()=>setView('signals')}><Radio size={18}/><span>City Signals</span>{signals?.status==='municipal_open_data'&&<i className="v5NavDot"/>}</button>
-          <button title="Incident Intelligence" className={view==='intel'?'active':''} onClick={()=>setView('intel')}><ScanSearch size={18}/><span>Incident Intelligence</span>{snapshot.source_mode==='live'&&<i className="v5NavDot"/>}</button>
-          <button title="Municipal Cameras" className={view==='cameras'?'active':''} onClick={()=>setView('cameras')}><CameraIcon size={18}/><span>Cameras</span>{snapshot.cameras.some(c=>c.provenance.origin==='municipal_open_data')&&<i className="v5NavDot"/>}</button>
-          <button title="AI Agent" className={view==='agent'?'active':''} onClick={()=>setView('agent')}><BrainCircuit size={18}/><span>AI Agent</span>{agentResult&&<i className="v5NavDot"/>}</button>
+          <button title="Overview" className={view==='overview'?'active':''} aria-current={view==='overview'?'page':undefined} onClick={()=>setView('overview')}><Activity size={18}/><span>Overview</span></button>
+          <button title="Operations Map" aria-label="Operations Map" className={view==='map'?'active':''} aria-current={view==='map'?'page':undefined} onClick={()=>{setView('map');setRouteFocusToken(x=>x+1);}}><MapPinned size={18}/><span>Operations Map</span><span className="workspaceNavShort" aria-hidden="true">Map</span></button>
+          <button title="City Signals" aria-label="City Signals" className={view==='signals'?'active':''} aria-current={view==='signals'?'page':undefined} onClick={()=>setView('signals')}><Radio size={18}/><span>City Signals</span><span className="workspaceNavShort" aria-hidden="true">Signals</span>{signals?.status==='municipal_open_data'&&<i className="v5NavDot"/>}</button>
+          <button title="Incident Intelligence" aria-label="Incident Intelligence" className={view==='intel'?'active':''} aria-current={view==='intel'?'page':undefined} onClick={()=>setView('intel')}><ScanSearch size={18}/><span>Incident Intelligence</span><span className="workspaceNavShort" aria-hidden="true">Notices</span>{snapshot.source_mode==='live'&&<i className="v5NavDot"/>}</button>
+          <button title="Municipal Cameras" aria-label="Cameras" className={view==='cameras'?'active':''} aria-current={view==='cameras'?'page':undefined} onClick={()=>setView('cameras')}><CameraIcon size={18}/><span>Cameras</span>{snapshot.cameras.some(c=>c.provenance.origin==='municipal_open_data')&&<i className="v5NavDot"/>}</button>
+          <button title="AI Agent" aria-label="AI Agent" className={view==='agent'?'active':''} aria-current={view==='agent'?'page':undefined} onClick={()=>setView('agent')}><BrainCircuit size={18}/><span>AI Agent</span><span className="workspaceNavShort" aria-hidden="true">Agent</span>{agentResult&&<i className="v5NavDot"/>}</button>
         </nav>
-        <span className="v5SidebarLabel v5NavSecondLabel">MISSION STATUS</span>
-        <div className="v5SidebarStatus"><span className="v5SidebarPulse"/><div><strong>{snapshot.source_mode==='live'?'Municipal signals':'Scenario / Replay'}</strong><small>{snapshot.source_mode==='live'?'Real observations + simulated fleet':'Fictional vehicles and deliveries'}</small></div></div>
-        <div className="v5SidebarBottom"><button title="Collapse sidebar" className="v5Collapse" onClick={()=>setNavCollapsed(x=>!x)}>{navCollapsed?<PanelLeftOpen size={18}/>:<PanelLeftClose size={18}/>}<span>{navCollapsed?'':'Collapse sidebar'}</span></button><div className="v5SideFoot">v2.2 · MAP COPILOT<br/>MADRID / ES</div></div>
+        <span className="v5SidebarLabel v5NavSecondLabel">DATA CONTEXT</span>
+        <div className="v5SidebarStatus"><span className="v5SidebarPulse"/><div><strong>{snapshot.source_mode==='live'?'Municipal signals':'Synthetic scenario'}</strong><small>{snapshot.source_mode==='live'?'Real observations + simulated fleet':'Fictional vehicles and deliveries'}</small></div></div>
+        <div className="v5SidebarBottom"><button title={navCollapsed?'Expand sidebar':'Collapse sidebar'} aria-label={navCollapsed?'Expand sidebar':'Collapse sidebar'} aria-expanded={!navCollapsed} className="v5Collapse" onClick={()=>setNavCollapsed(x=>!x)}>{navCollapsed?<PanelLeftOpen size={18}/>:<PanelLeftClose size={18}/>}<span>{navCollapsed?'':'Collapse sidebar'}</span></button><div className="v5SideFoot">MADRID · ES</div></div>
       </aside>
       <div className="v5ContentArea">
     <header className="v2Topbar">
-      <div className="v2Logo"><span className="v2LogoMark">C.</span><div><strong>CURB<span>OPS</span></strong><small>OPERATIONS INTELLIGENCE</small></div></div>
-      <div className="v5TopContext"><span className="v5TopContextOverline">OPERATIONS WORKSPACE</span><strong>{view==='overview'?'Mission overview':view==='map'?'Dispatch network':view==='signals'?'Municipal intelligence':view==='intel'?'Incident Intelligence':view==='cameras'?'Camera network':'Agent execution'}</strong></div>
-      <div className="v2TopRight"><button className="v2IconBtn v2ThemeToggle" onClick={()=>setTheme(t=>t==='dark'?'light':'dark')} title={theme==='dark'?'Switch to light mode':'Switch to dark mode'} aria-label={theme==='dark'?'Switch to light mode':'Switch to dark mode'}>{theme==='dark'?<Sun size={18}/>:<Moon size={18}/>}</button><span className={`v2Connection ${backendUp?'connected':''}`}><i/>{backendUp?'API connected':'Offline preview'}</span><button className="v2IconBtn" onClick={()=>exportJSON({snapshot,agent_run:agentResult,generated_at:new Date().toISOString()})} title="Export JSON briefing"><Download size={17}/></button></div>
+
+      <div className="v5TopContext"><span className="v5TopContextOverline">MADRID / OPERATIONS</span><strong>{view==='overview'?'Mission overview':view==='map'?'Operations map':view==='signals'?'City signals':view==='intel'?'Incident Intelligence':view==='cameras'?'Camera network':'Agent workspace'}</strong></div>
+      <div className="v2TopRight"><button className="v2IconBtn v2ThemeToggle" onClick={()=>setTheme(t=>t==='dark'?'light':'dark')} title={theme==='dark'?'Switch to light mode':'Switch to dark mode'} aria-label={theme==='dark'?'Switch to light mode':'Switch to dark mode'}>{theme==='dark'?<Sun size={18}/>:<Moon size={18}/>}</button><span role="status" className={`v2Connection ${backendUp?'connected':''}`}><i/>{backendUp?'API connected':checkingBackend?'Connecting…':'Offline preview'}</span><button className="v2IconBtn" onClick={()=>exportJSON({snapshot,agent_run:agentResult,generated_at:new Date().toISOString()})} title="Export JSON briefing" aria-label="Export JSON briefing"><Download size={17}/></button></div>
     </header>
-    <main className="v2Main">
-      {view==='overview'&&<>
-        <div className="v2PageIntro"><div><div className="v2Kicker">MADRID, SPAIN <span>·</span> FLEET CONTROL</div><h1>Your city. <em>Under control.</em></h1><p>Investigate disruptions, compare routes and prepare a dispatch decision with an AI agent.</p></div><span className="v2ModeBadge"><ShieldCheck size={14}/> {activeMode}</span></div>
-        <div className="v2Metrics"><CardMetric label="ACTIVE VEHICLES" value={String(snapshot.vehicles.length).padStart(2,'0')} unit="vans" icon={<Truck size={18}/>} detail="Fictional fleet"/><CardMetric label="DELIVERIES" value={String(snapshot.deliveries.length).padStart(2,'0')} unit="stops" icon={<MapPinned size={18}/>} detail="Scheduled in scenario"/><CardMetric label="TRAFFIC EVENTS" value={String(snapshot.incidents.length).padStart(2,'0')} unit="events" icon={<Activity size={18}/>} detail={snapshot.incidents.some(item=>item.provenance.origin==='municipal_open_data')?'Municipal incident feed':'Synthetic events'}/><CardMetric label="PLANNED DISTANCE" value={number(current.metrics.distance_km)} unit="km" icon={<Route size={18}/>} detail={delta>0?`${number(delta)} km below modeled baseline`:'Illustrative baseline'}/></div>
-        <div className="v9LiveRibbon" role="status">
-          <div className="v9LiveIcon"><Radio size={17}/></div>
-          <div className="v9LiveDescription"><strong>Madrid Urban Pulse</strong><span>{cityState}{fetchAgeMinutes!==null?` · downloaded ${fetchAgeMinutes} min ago`:''} · municipal data, not live fleet tracking</span></div>
-          <div className="v9LiveCounts"><strong>{signals?.status==='municipal_open_data'?signals.total_valid.toLocaleString('en-GB'):'—'}<small> sensors</small></strong><strong>{snapshot.incidents.filter(x=>x.provenance.origin==='municipal_open_data').length}<small> official events</small></strong></div>
-          <button disabled={sourceBusy||busy!==null||!backendUp} onClick={()=>signals?.status==='municipal_open_data'?setView('signals'):void syncSources()}>{sourceBusy?<LoaderCircle className="v2Spin" size={14}/>:<RefreshCw size={14}/>} {signals?.status==='municipal_open_data'?'Explore readings':'Fetch Madrid data'}</button>
-        </div>
-        <div className="v2OverviewGrid"><section className="v2Panel v2OverviewMap"><div className="v2PanelHeading"><div><span className="v2Eyebrow">LIVE WORKSPACE</span><h2>Madrid operations</h2></div><button className="v2TextLink" onClick={()=>setView('map')}>Expand map <ArrowRight size={16}/></button></div><MapCanvas snapshot={snapshot} plan={current} layers={layers} selectedIncident={selectedIncident} onSelectIncident={setSelectedIncident} selectedVehicle={selectedVehicle} onSelectVehicle={setSelectedVehicle} compare={compare} theme={theme} traffic={signals}/></section>
-          <aside className="v2OverviewSide"><section className="v2Spotlight"><span className="v2Eyebrow"><Sparkles size={13}/> NEXT ACTION</span><h2>One decision, all the context.</h2><p>Run a disruption analysis for your fictional fleet. The agent can inspect incidents, call tools and propose a new plan.</p><button className="v2Primary" onClick={()=>{setView('agent');void runAgent(SUGGESTIONS[0]);}} disabled={busy!==null}><BrainCircuit size={17}/> {busy==='agent'?'Running...':'Run AI investigation'} <ArrowRight size={17}/></button><div className="v2SmallPrint">Needs API connection. LLM key optional; offline deterministic workflow clearly labelled.</div></section>
-          <section className="v2Panel v2Shortlist"><div className="v2PanelHeading"><div><span className="v2Eyebrow">PRIORITY SIGNALS</span><h2>Events to inspect</h2></div><button className="v2TextLink" onClick={()=>setView('intel')}>Evidence lab <ArrowRight size={14}/></button></div><div className="v2Events">{snapshot.incidents.slice(0,3).map(item=><button key={item.id} onClick={()=>showIncident(item.id)}><span className={`v2Severity ${item.severity}`}/><span><strong>{item.title}</strong><small>{item.provenance.origin==='synthetic'?'Synthetic scenario':'Madrid Open Data'} · {item.kind}</small></span><ChevronRight size={15}/></button>)}</div></section></aside></div>
-      </>}
+    <main className="v2Main" id="workspace-main" tabIndex={-1}>
+      {view==='overview'&&<MissionOverview
+        mission={snapshot} baseline={snapshot.original_plan} signals={signals}
+        map={<MapCanvas overview snapshot={snapshot} plan={snapshot.original_plan} layers={{...layers,incidents:true,deliveries:true}}
+          selectedIncident={null} onSelectIncident={showIncident} selectedVehicle={null} onSelectVehicle={openOverviewMap}
+          compare={false} theme={theme} traffic={signals} routeFocusToken={routeFocusToken}/>}
+        connected={backendUp} roadAvailable={roadAvailable} busy={busy!==null} loadingRoutes={busy==='replan'} loadingSources={sourceBusy}
+        onMap={openOverviewMap} onLoadRoutes={()=>void loadOriginalRoads()}
+        onInvestigate={()=>{setView('agent');void runAgent(FLEET_REVIEW);}}
+        onIncident={showIncident} onIncidents={()=>setView('intel')}
+        onSignals={()=>setView('signals')} onLoadSources={()=>void syncSources()}
+      />}
       {view==='map'&&<>
         <div className={`v17Workspace ${mapExpanded?'v17Focus':''}`} role="region" aria-label="Madrid AI Map Workspace">
-          <section className="v17MapColumn" aria-label="Mapa operativo de Madrid">
+          <section className="v17MapColumn" aria-label="Madrid operations map">
             <header className="v17MapHeader">
-              <div className="v17MapIdentity"><span className="v17LiveDot"/><div><strong>Madrid · Operations Map</strong><small>Simulated fleet and deliveries · {snapshot.source_mode==='live'?'municipal observations':'municipal data optional'}</small></div></div>
+              <div className="v17MapIdentity"><MapPinned size={18} aria-hidden="true"/><div><strong>Madrid · Operations Map</strong><small>Simulated fleet and deliveries · {snapshot.source_mode==='live'?'municipal observations':'municipal data optional'}</small></div></div>
               <div className="v17MapActions">
-                <div className="v18FleetColors" title="Vehicle route colors"><span><i className="v18V1"/> V-01</span><span><i className="v18V2"/> V-02</span><span><i className="v18V3"/> V-03</span></div>
+                <div className="v18FleetColors" title="Vehicle route colors">{snapshot.vehicles.map(vehicle=><span key={vehicle.id}><i style={{background:fleetColor(vehicle.id,vehicle.color)}}/> {vehicle.id}</span>)}</div>
                 <div className="v17ScenarioSwitch" role="group" aria-label="Route scenarios">
                   {(['A','B','C'] as const).map(id=><button key={id} className={scenario===id?'active':''} disabled={id!=='A'&&!mapScenarioPlan(id)} onClick={()=>chooseScenario(id)} title={id==='A'?'Original plan':id==='B'?'Road-time optimization':'Indicative risk proposal'}>{id}<span>{id==='A'?'Original':id==='B'?'No risk':'Risk-aware'}</span></button>)}
                 </div>
@@ -543,7 +538,11 @@ export default function Dashboard(){
               <span>{referenceScenario}</span><input type="range" min="0" max="100" value={comparisonMix} aria-label="Route comparison visibility" onChange={e=>setComparisonMix(Number(e.target.value))}/><span>{activeScenario}</span>
               <button onClick={()=>setComparisonMix(0)} className={comparisonMix===0?'active':''}>Reference</button><button onClick={()=>setComparisonMix(50)} className={comparisonMix===50?'active':''}>Both</button><button onClick={()=>setComparisonMix(100)} className={comparisonMix===100?'active':''}>Proposal</button>
             </div>}
-            <div className="v17MapViewport">{busy==='agent'&&<div className="v21LiveAction" role="status"><LoaderCircle size={14} className="v2Spin"/><span>{agentPhase}</span></div>}<MapCanvas snapshot={snapshot} plan={mapPlan} referencePlan={referencePlan} isolatedVehicle={isolatedVehicle} onIsolateVehicle={id=>{setSelectedVehicle(id);setIsolatedVehicle(true);setInspectorVisible(true);}} layers={layers} selectedIncident={selectedIncident} onSelectIncident={setSelectedIncident} selectedVehicle={selectedVehicle} onSelectVehicle={id=>{setSelectedVehicle(id);setCorridorContext(null);setRouteRiskDifference(null);setHighlightIncidentIds([]);}} compare={compare} theme={theme} traffic={signals} sensorFocusId={sensorFocusId} onSelectSensor={setSensorFocusId} routeFocusToken={routeFocusToken} comparisonMix={comparisonMix} highlightIncidentIds={highlightIncidentIds} avoidedIncidentIds={[...(routeRiskDifference?.avoided.map(i=>i.id)||[]),...(scenarioBundle?.precautionary_avoidance?.avoided_incident_ids||[])]} focusSensorIds={focusSensorIds} comparisonUi={baselineReady}/>{!baselineReady&&<div className="v17InitialRoutes"><Route size={21}/><strong>Initial street routes not loaded</strong><p>The fleet is fictional. Load street routes to explore the scenario before creating a proposal.</p><button disabled={busy!==null||!roadAvailable} onClick={()=>void loadOriginalRoads()}>{roadAvailable?'Load original routes': 'Configure OSRM/ORS to route'}</button></div>}</div>
+            {!baselineReady&&<div className="workspaceRouteSetup">
+              <div><Route size={16} aria-hidden="true"/><span><strong>Showing delivery stops</strong><small>{roadAvailable?'Load scenario A to see street routes.':'Street routing requires an API and a routing provider.'}</small></span></div>
+              {roadAvailable&&<button disabled={busy!==null} onClick={()=>void loadOriginalRoads()}>{busy==='replan'?'Loading routes…':'Load original routes'}</button>}
+            </div>}
+            <div className="v17MapViewport">{busy==='agent'&&<div className="v21LiveAction" role="status"><LoaderCircle size={14} className="v2Spin"/><span>{agentPhase}</span></div>}<MapCanvas snapshot={snapshot} plan={mapPlan} referencePlan={referencePlan} isolatedVehicle={isolatedVehicle} onIsolateVehicle={id=>{setSelectedVehicle(id);setIsolatedVehicle(true);setInspectorVisible(true);}} layers={layers} selectedIncident={selectedIncident} onSelectIncident={setSelectedIncident} selectedVehicle={selectedVehicle} onSelectVehicle={id=>{setSelectedVehicle(id);setCorridorContext(null);setRouteRiskDifference(null);setHighlightIncidentIds([]);}} compare={compare} theme={theme} traffic={signals} sensorFocusId={sensorFocusId} onSelectSensor={setSensorFocusId} routeFocusToken={routeFocusToken} comparisonMix={comparisonMix} highlightIncidentIds={highlightIncidentIds} avoidedIncidentIds={[...(routeRiskDifference?.avoided.map(i=>i.id)||[]),...(scenarioBundle?.precautionary_avoidance?.avoided_incident_ids||[])]} focusSensorIds={focusSensorIds} comparisonUi={baselineReady}/></div>
             <footer className="v17MapFoot">
               <span>{mapRoadReady?`${activeScenario}: ${number(mapPlan.metrics.distance_km)} km · ${number(mapPlan.metrics.travel_minutes)} min base`:'Street routes not loaded'} <small>· base road estimates · {signals?.status==='municipal_open_data'?`${signals.points.length} sensor points available (advisory only)`:'no current sensor cost model'} {scenarioBundle?.plan_stale?'· Replan: incident inputs changed':''}{scenarioBundle?.precautionary_avoidance?` · ${scenarioBundle.precautionary_avoidance.verified_vehicle_detours} provider-verified preventative detour(s)`:''}</small></span>
               <div className="v17FootRight">
@@ -570,7 +569,7 @@ export default function Dashboard(){
               {scenarioBundle.precautionary_avoidance.verified_vehicle_detours>0&&<button onClick={()=>{setComparisonPair('BC');setCompare(true);setComparisonMix(50);setScenario('C');setView('map');}}>Show verified B/C changes <ArrowRight size={13}/></button>}
             </div>}
             <div className="v17Conversation" ref={chatScrollRef} aria-live="polite">
-              {!chatTurns.length&&<div className="v17Welcome"><Sparkles size={22}/><h2>Ask the map.</h2><p>Inspect routes, municipal events and sensors. The copilot uses tools and controls the map as it works.</p><div><button disabled={busy!==null} onClick={()=>void runAgent('Inspect all fleet street routes. Identify nearby notices and municipal sensors, focus the most relevant vehicle, and distinguish observed data from geographic proximity. Do not replan.')}>Inspect fleet risks <ArrowRight size={14}/></button><button disabled={busy!==null} onClick={()=>void runAgent('Inspect V-02 and highlight all nearby notices along C. Separate applied risks from geographic context; focus the vehicle and notices on the map.')}>Inspect V-02 <ArrowRight size={14}/></button></div></div>}
+              {!chatTurns.length&&<div className="v17Welcome"><h2>Investigate a route</h2><p>Start with the whole fleet or focus one vehicle. The copilot can show its findings on the map.</p><div><button disabled={busy!==null} onClick={()=>void runAgent(FLEET_REVIEW)}>Inspect fleet risks <ArrowRight size={14}/></button><button disabled={busy!==null} onClick={()=>void runAgent('Inspect V-02 and highlight all nearby notices along C. Separate applied risks from geographic context; focus the vehicle and notices on the map.')}>Inspect V-02 <ArrowRight size={14}/></button></div></div>}
               {chatTurns.map(turn=><div key={turn.id} className={`v17ChatBubble ${turn.role==='user'?'fromOperator':'fromAgent'}`}><div className="v17BubbleLabel">{turn.role==='user'?'OPERATOR':turn.mode==='agent_error'?'AGENT · INCOMPLETE':turn.mode==='deterministic_demo'?'LOCAL ENGINE · NO LLM':'COPILOT'}</div>{turn.role==='assistant'?<BriefingMarkdown text={turn.content}/>:<p>{turn.content}</p>}</div>)}
               {busy==='agent'&&<div className="v17Working"><div className="v17WorkingTitle"><LoaderCircle className="v2Spin" size={16}/><strong>{agentPhase}</strong></div>{agentToolHistory.slice(-4).map((step,index)=><span key={index}>{step}</span>)}{agentMapSteps.slice(-4).map((step,index)=><span key={`map-${index}`}><Check size={12}/>{step}</span>)}<small>Observed tool events, not private model reasoning.</small></div>}
             </div>
@@ -601,10 +600,10 @@ export default function Dashboard(){
         </div>
       </>}
       {view==='agent'&&<>
-        <div className="v2PageIntro v2CompactIntro"><div><div className="v2Kicker">OPERATIONS / AI AGENT</div><h1>AI Dispatch Copilot</h1><p>Ask for an operational analysis. Inspect every tool call before approving a simulated decision.</p></div><span className="v2ModeBadge"><BrainCircuit size={14}/>{agentResult?.mode==='llm_tool_agent'?`LLM: ${agentResult.provider}`:'Demo workflow · API optional'}</span></div>
+        <div className="v2PageIntro v2CompactIntro"><div><div className="v2Kicker">OPERATIONS / AI AGENT</div><h1>AI Dispatch Copilot</h1><p>Ask for an operational analysis. Inspect every tool call before approving a simulated decision.</p></div><span className="v2ModeBadge"><BrainCircuit size={14}/>{agentResult?.mode==='llm_tool_agent'?`LLM: ${agentResult.provider}`:'Local demo · no model key needed'}</span></div>
         <div className="v15AgentMapNav"><button onClick={()=>{setMapAgentOpen(true);setView('map');}}>View on map <ArrowRight size={14}/></button><span>Map actions are applied during execution. This page audits all observed tool calls.</span></div><div className="v2AgentLayout"><section className="v2Panel v2AgentMain"><div className="v2PanelHeading"><div><span className="v2Eyebrow">AGENT WORKSPACE</span><h2>What should we investigate?</h2></div><span className="v2ModeBadge">HUMAN IN THE LOOP</span></div>
-          <div className="v2AgentBody">{!agentResult && busy!=='agent'?<div className="v2AgentWelcome"><span className="v2AgentBigIcon"><BrainCircuit size={30}/></span><h2>An operator's copilot, not a chatbot.</h2><p>Ask CurbOps to inspect the scenario, retrieve evidence and prepare a plan you can review.</p><div className="v2AgentSuggested">{SUGGESTIONS.map((text,i)=><button key={text} disabled={busy!==null} onClick={()=>{setPrompt(text);void runAgent(text);}}><span>0{i+1}</span>{text}<ArrowRight size={15}/></button>)}</div></div>:<AgentRunVisual events={agentEvents} result={agentResult} loading={busy==='agent'} snapshot={snapshot} onMap={viewRouteChanges} onIncident={highlightIncidentEvidence}/>}</div>
-          <form className="v2AgentComposer v10AgentComposer" onSubmit={event=>{event.preventDefault();void runAgent();}}><div className="v10ComposerIntro"><label htmlFor="v2Prompt">YOUR OWN REQUEST · FREE FORM</label><span>Editable · Ctrl + Enter to run</span></div><textarea id="v2Prompt" rows={3} maxLength={1200} placeholder="Ask about an incident, route choice, sensor reading, or operational decision…" value={prompt} onChange={event=>setPrompt(event.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){e.preventDefault();void runAgent();}}}/><div className="v10PromptTemplates"><button type="button" onClick={()=>setPrompt('Inspect municipal notices near Plaza de Castilla and nearby sensors and cameras.')} disabled={busy!==null}>Investigate zone</button><button type="button" onClick={()=>setPrompt('Prepare a street-route proposal and explain exactly what changed.')} disabled={busy!==null}>Explain routing</button><button type="button" onClick={()=>setPrompt('Compare two municipal sensor snapshots, separating observations from hypotheses.')} disabled={busy!==null}>Traffic changes</button></div><div className="v4ModelSelectorRow"><label htmlFor="v4ModelTier">LLM quality</label><select id="v4ModelTier" value={modelTier} disabled={busy!==null} onChange={event=>setModelTier(event.target.value as 'efficient'|'advanced')}><option value="efficient">Efficient · Flash-Lite (500 RPD*)</option><option value="advanced">Advanced · Flash (20 RPD*)</option></select><small>*Example Google quotas shown by your project; may change. Advanced mode is opt-in. <a href="https://aistudio.google.com/rate-limit" target="_blank" rel="noopener noreferrer">View your quota ↗</a></small></div><div><span>{backendUp?'Backend ready':'Backend offline'} · {agentResult?.mode==='llm_tool_agent'?'LLM verified':agentResult?'Demo mode':'Not run yet'}</span><button className="v2Primary" disabled={busy!==null||!prompt.trim()} type="submit">{busy==='agent'?<LoaderCircle className="v2Spin" size={15}/>:<Send size={15}/>} Run investigation</button></div></form>
+          <div className="v2AgentBody">{!agentResult && busy!=='agent'?<div className="v2AgentWelcome"><span className="v2AgentBigIcon"><BrainCircuit size={30}/></span><h2>Start with a fleet question</h2><p>Ask CurbOps to inspect the scenario, retrieve evidence and prepare a plan you can review.</p><div className="v2AgentSuggested">{SUGGESTIONS.map((text,i)=><button key={text} disabled={busy!==null} onClick={()=>{setPrompt(text);void runAgent(text);}}><span>0{i+1}</span>{text}<ArrowRight size={15}/></button>)}</div></div>:<AgentRunVisual events={agentEvents} result={agentResult} loading={busy==='agent'} snapshot={snapshot} onMap={viewRouteChanges} onIncident={highlightIncidentEvidence}/>}</div>
+          <form className="v2AgentComposer v10AgentComposer" onSubmit={event=>{event.preventDefault();void runAgent();}}><div className="v10ComposerIntro"><label htmlFor="v2Prompt">YOUR OWN REQUEST · FREE FORM</label><span>Editable · Ctrl + Enter to run</span></div><textarea id="v2Prompt" rows={3} maxLength={1200} placeholder="Ask about an incident, route choice, sensor reading, or operational decision…" value={prompt} onChange={event=>setPrompt(event.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){e.preventDefault();void runAgent();}}}/><div className="v10PromptTemplates"><button type="button" onClick={()=>setPrompt('Inspect municipal notices near Plaza de Castilla and nearby sensors and cameras.')} disabled={busy!==null}>Investigate zone</button><button type="button" onClick={()=>setPrompt('Prepare a street-route proposal and explain exactly what changed.')} disabled={busy!==null}>Explain routing</button><button type="button" onClick={()=>setPrompt('Compare two municipal sensor snapshots, separating observations from hypotheses.')} disabled={busy!==null}>Traffic changes</button></div><div className="v4ModelSelectorRow"><label htmlFor="v4ModelTier">LLM quality</label><select id="v4ModelTier" value={modelTier} disabled={busy!==null} onChange={event=>setModelTier(event.target.value as 'efficient'|'advanced')}><option value="efficient">Efficient</option><option value="advanced">Advanced</option></select><small>Advanced uses the higher-capability model when configured. <a href="https://aistudio.google.com/rate-limit" target="_blank" rel="noopener noreferrer">View your quota ↗</a></small></div><div><span>{backendUp?'Backend ready':'Backend offline'} · {agentResult?.mode==='llm_tool_agent'?'LLM verified':agentResult?'Demo mode':'Not run yet'}</span><button className="v2Primary" disabled={busy!==null||!prompt.trim()} type="submit">{busy==='agent'?<LoaderCircle className="v2Spin" size={15}/>:<Send size={15}/>} Run investigation</button></div></form>
         </section>
         <aside className="v2AgentAside">{newProposalId&&proposed?.id===newProposalId&&<section className="v2Panel v2Proposal"><span className="v2Eyebrow">DISPATCH DECISION</span><h2>{showProposal&&roadReady&&snapshot.approved_plan?'Approved locally':showProposal&&roadReady&&proposed?'Street proposal ready':'No new proposal displayed'}</h2><p>{showProposal&&roadReady&&proposed?`${proposed.routes.length} vehicles · ${proposed.metrics.total_stops} simulated deliveries · road-network estimates`:'Open an investigation to propose changes; baseline street routes can be loaded without any optimization.'}</p>{!roadReady&&roadAvailable&&<button className="v11RoadPrimary v2Full" disabled={busy!==null} onClick={()=>void runAgent('Inspect the current fictional fleet and mapped incidents. Prepare a proposal using road matrix costs and audit the counterfactual effect of approximate incident risk. Do not approve.') }><BrainCircuit size={15}/> Request AI proposal</button>}{roadReady&&proposed&&showProposal&&<>{riskSummary&&<div className={`v13ImpactPill ${riskSummary.changed_by_soft_incident_penalty?'warn':''}`}><GitCompareArrows size={16}/><span><strong>{riskSummary.changed_by_soft_incident_penalty?'Incident proximity influenced the model':'Road-cost-driven route changes'}</strong><small>Counterfactual on identical base-road costs; no certified blocked edges.</small></span></div>}<Comparison base={snapshot.original_plan.metrics} current={proposed.metrics} comparable={roadReady}/><button className="v2Primary v2Full" disabled={busy!==null||!!snapshot.approved_plan||!!scenarioBundle?.plan_stale} onClick={approve}>{snapshot.approved_plan?<><CheckCircle2 size={15}/> Approved locally</>:<><Check size={15}/> Approve simulated plan</>}</button><button className="v2TextLink v2Full" onClick={()=>viewRouteChanges()}>Compare routes on map <ArrowRight size={15}/></button></>}</section>}{!newProposalId&&<section className="v2Panel v2Proposal"><span className="v2Eyebrow">READ-ONLY INVESTIGATION</span><h2>No plan changes in this request</h2><p>This investigation did not create a new proposal. There is nothing to approve or dispatch.</p></section>}<section className="v2Panel v2DataBox"><span className="v2Eyebrow">DATA TRANSPARENCY</span><h2>Understand the inputs</h2><p>The three vans and deliveries are fictional. Municipal feeds are opt-in and labeled by provenance.</p><button className="v2Secondary v2Full" onClick={()=>setShowSources(v=>!v)}><Database size={15}/> {showSources?'Hide data sources':'Inspect data sources'}</button>{showSources&&<div className="v2Sources">{snapshot.sources.map(source=><div key={source.id}><span>{source.name}</span><strong>{source.connected?'Connected':'Demo'}</strong></div>)}<button className="v2Secondary v2Full" disabled={busy!==null||sourceBusy} onClick={()=>void syncSources()}>{sourceBusy?<LoaderCircle className="v2Spin" size={14}/>:<RefreshCw size={14}/>} Fetch Madrid open data</button>{snapshot.source_mode==='live'&&<button className="v2TextLink" onClick={demoMode}>Back to demo</button>}</div>}</section></aside></div>
       </>}

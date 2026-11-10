@@ -49,9 +49,9 @@ export default function IncidentIntelligence({mission,signals,selectedIncident,o
   };
   return <div className="v8IntelRoot">
     <header className="v8IntelHero">
-      <div><div className="v2Kicker"><span className="v8Beacon"/> CITY / INVESTIGATION WORKSPACE</div>
-        <h1>Investigate the <em>impact radius.</em></h1>
-        <p>One municipal event. Nearby sensors, cameras and loading reserves. Every link grounded in distance and provenance.</p>
+      <div><div className="v2Kicker"><span className="v8Beacon"/> MADRID / INCIDENT INTELLIGENCE</div>
+        <h1>Road notices and nearby evidence</h1>
+        <p>Select a notice to see nearby sensors, cameras and loading bays. Distance alone does not establish a closure.</p>
       </div>
       <div className="v8IntelHeroActions"><span className="v8Provenance"><span/>{sourceFidelity}</span>
         <button className="v2Secondary" onClick={refresh} disabled={refreshing}>{refreshing?<LoaderCircle className="v2Spin" size={16}/>:<RefreshCw size={16}/>} Refresh sources</button></div>
@@ -80,7 +80,7 @@ export default function IncidentIntelligence({mission,signals,selectedIncident,o
       <aside className="v8IntelEvidence v2Panel">
         <div className="v8IntelColumnHeader"><span className="v2Eyebrow">03 / INVESTIGATE CONTEXT</span><strong>Evidence inspector</strong><small>Bounded, read-only analysis</small></div>
         <div className="v8RadiusPicker"><span>Investigation radius</span><div>{[400,800,1500].map(m=><button key={m} className={radius===m?'on':''} onClick={()=>setRadius(m)}>{m>=1000?'1.5 km':m+' m'}</button>)}</div></div>
-        {loading?<div className="v8EvidenceLoading"><LoaderCircle className="v2Spin" size={20}/><strong>Joining nearby city signals…</strong><span>Haversine geometry · no inference</span></div>:
+        {loading?<div className="v8EvidenceLoading"><LoaderCircle className="v2Spin" size={20}/><strong>Finding nearby sensors and cameras…</strong><span>Results are grouped by distance from the notice.</span></div>:
         error?<div className="v8EvidenceError">Evidence API unavailable: {error}</div>:
         evidence?<div className="v8EvidenceContent">
           <div className="v8SelectedIncident"><span className="v2Eyebrow">SELECTED INCIDENT</span><h3>{evidence.incident.title}</h3><span className="v8OriginTag">{evidence.incident.provenance.origin==='municipal_open_data'?'Official Madrid record':'Synthetic event'}</span><p>{evidence.incident.detail}</p></div>

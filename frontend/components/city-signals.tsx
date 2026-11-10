@@ -32,22 +32,22 @@ export default function CitySignals({signals,changes,autoRefresh,onAutoRefresh,m
   const meanSpeed=speeds.length?speeds.reduce((a,b)=>a+b,0)/speeds.length:null;
   const count=(level:number)=>observations.filter(x=>x.service_level===level).length;
   const labelFor=(s:TrafficSensor)=>LEVELS.find(x=>x.key===s.service_level)||{name:'Not classified',color:'#839eaa'};
-  const updated=signals?.fetched_at?new Date(signals.fetched_at).toLocaleString('es-ES',{dateStyle:'medium',timeStyle:'short'}):null;
+  const updated=signals?.fetched_at?new Date(signals.fetched_at).toLocaleString('es-ES',{dateStyle:'medium',timeStyle:'short',timeZone:'Europe/Madrid'}):null;
   return <div className="v5SignalsPage">
     <div className="v2PageIntro v2CompactIntro v5SignalIntro">
-      <div><div className="v2Kicker"><span className="v5Beacon"/> CITY INTELLIGENCE / MADRID</div><h1>City Signals <em>Live Data.</em></h1><p>Explore verified municipal observations. Fleet operations remain simulated and independent.</p></div>
-      <div className="v5SignalActions"><span className={`v5DataBadge ${hasMeasurements?'online':'pending'}`}><span className="v5DataDot"/>{hasMeasurements?'MUNICIPAL DATA LOADED':'NO LIVE SENSOR DATA'}</span><label className="v9AutoRefresh" title="Fetch city sources once every five minutes while this page is open, shared by the API backend"><input type="checkbox" checked={autoRefresh} onChange={e=>onAutoRefresh(e.target.checked)}/><span>Auto · 5 min</span></label><button className="v2Primary" onClick={refresh} disabled={loading}><RefreshCw className={loading?'v2Spin':''} size={16}/>{loading?'Fetching sources':'Fetch city sources'}</button></div>
+      <div><div className="v2Kicker"><span className="v5Beacon"/> CITY INTELLIGENCE / MADRID</div><h1>Madrid traffic readings</h1><p>Inspect the latest downloaded measurements and compare readings across two snapshots.</p></div>
+      <div className="v5SignalActions"><span className={`v5DataBadge ${hasMeasurements?'online':'pending'}`}><span className="v5DataDot"/>{hasMeasurements?'MUNICIPAL DATA LOADED':'NO SENSOR SNAPSHOT'}</span><label className="v9AutoRefresh" title="Fetch city sources once every five minutes while this page is open, shared by the API backend"><input type="checkbox" checked={autoRefresh} onChange={e=>onAutoRefresh(e.target.checked)}/><span>Auto · 5 min</span></label><button className="v2Primary" onClick={refresh} disabled={loading}><RefreshCw className={loading?'v2Spin':''} size={16}/>{loading?'Fetching sources':'Fetch city sources'}</button></div>
     </div>
     <div className="v5SignalMetrics">
       <div className="v5SignalMetric"><div><Database size={17}/> MUNICIPAL SENSORS</div><strong>{hasMeasurements?n(signals!.total_valid):'—'}</strong><span>{hasMeasurements?`${n(observations.length)} displayed (sampled)`: 'Not loaded'}</span></div>
       <div className="v5SignalMetric"><div><TrafficCone size={17}/> CONGESTION POINTS</div><strong className="v5WarmNumber">{hasMeasurements?n(count(3)):'—'}</strong><span>Level 3 · among mapped sensors</span></div>
       <div className="v5SignalMetric"><div><Activity size={17}/> OBSERVED SPEED</div><strong>{meanSpeed!==null?`${n(meanSpeed)} km/h`:'—'}</strong><span>Average of valid point readings</span></div>
-      <div className="v5SignalMetric"><div><Clock3 size={17}/> LAST DOWNLOAD</div><strong className="v5SmallValue">{updated||'Not available'}</strong><span>Fetch timestamp, not guaranteed observation time</span></div>
+      <div className="v5SignalMetric"><div><Clock3 size={17}/> LAST DOWNLOAD</div><strong className="v5SmallValue">{updated||'Not available'}</strong><span>Madrid time · observation times may differ</span></div>
     </div>
     <div className="v5SignalsGrid">
       <section className="v2Panel v5SignalMapPanel">
         <div className="v2PanelHeading"><div><span className="v2Eyebrow">OBSERVATION LAYER / WGS84</span><h2>Madrid sensor network</h2></div><span className="v5MapLegend"><i/> Actual points only</span></div>
-        <div className="v5SignalMapStage">{map}{!hasMeasurements&&<div className="v5SignalMapEmpty"><Radio size={22}/><strong>Awaiting municipal data</strong><span>Fetch sources to populate actual traffic sensors. This map never invents observations.</span><button onClick={refresh} disabled={loading}>Connect sensors <ArrowRight size={14}/></button></div>}</div>
+        <div className="v5SignalMapStage">{map}{!hasMeasurements&&<div className="v5SignalMapEmpty"><Radio size={22}/><strong>Awaiting municipal data</strong><span>Fetch the municipal feed to see measured traffic at individual sensors.</span><button onClick={refresh} disabled={loading}>Fetch sensor data <ArrowRight size={14}/></button></div>}</div>
         <div className="v5SignalMapFooter"><span><ShieldCheck size={14}/> Ayuntamiento de Madrid · CC BY 4.0</span><button className="v2TextLink" onClick={onMap}>Fleet operations map <ArrowRight size={14}/></button></div>
       </section>
       <aside className="v5SignalsSide">
@@ -55,7 +55,7 @@ export default function CitySignals({signals,changes,autoRefresh,onAutoRefresh,m
           {hasMeasurements&&withLevel.length? <div className="v5Distribution">{LEVELS.map(level=><div className="v5DistributionRow" key={level.key}><div><span><i style={{background:level.color}}/>{level.name}</span><strong>{count(level.key)}</strong></div><div className="v5DistributionTrack"><div style={{width:`${Math.max(0,count(level.key)/withLevel.length*100)}%`,background:level.color}}/></div></div>)}<p>Categories reported by the municipal sensors. Percentages exclude unknown readings.</p></div>:<div className="v5EmptyChart"><Activity size={26}/><p>Real distributions appear after a successful feed download.</p></div>}
         </section>
         <section className="v2Panel v9CityChangeCard">
-          <div className="v2PanelHeading"><div><span className="v2Eyebrow">TWO-SNAPSHOT COMPARISON</span><h2>City pulse · actual changes</h2></div><Activity size={17}/></div>
+          <div className="v2PanelHeading"><div><span className="v2Eyebrow">TWO-SNAPSHOT COMPARISON</span><h2>Changes between downloads</h2></div><Activity size={17}/></div>
           {changes?.available?<>
             <div className="v9ChangeCounters"><div><span>WORSENED</span><strong className="worse">{changes.worsened}</strong></div><div><span>IMPROVED</span><strong className="better">{changes.improved}</strong></div><div><span>COMPARED</span><strong>{changes.compared_sensor_count}</strong></div></div>
             <div className="v9ChangeRows">{changes.changed.slice(0,5).map(c=><button key={c.id} onClick={()=>onSensorFocus(c.id)} title={`Locate observed sensor ${c.id}`}><span className={c.delta>0?'worse':'better'}>{c.delta>0?'↑':'↓'}</span><span><strong>Sensor {c.id}</strong><small>{c.road_name||'Madrid road measurement'}</small></span><em>{c.previous_level} → {c.current_level}</em><ArrowRight size={13}/></button>)}</div>

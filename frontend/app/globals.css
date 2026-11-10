@@ -142,7 +142,7 @@
 .v4BriefingBody p{font-size:14px;font-weight:500;line-height:1.8;white-space:pre-wrap;overflow-wrap:anywhere;color:var(--ink);margin:10px 0 0}
 .v4Recommended{border-top:1px solid var(--line);padding:14px 20px;display:grid;gap:10px}
 .v4Recommended>strong{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em}
-.v4Recommended>div{display:flex;align-items:start;gap:10px}
+.v4Recommended>div{display:flex;align-items:flex-start;gap:10px}
 .v4Recommended>div span{font-size:10px;color:var(--lime);background:#5db17a1e;border:1px solid #43836270;border-radius:6px;width:22px;height:22px;display:grid;place-items:center;flex-shrink:0}
 .v4Recommended p{font-size:11px;color:var(--ink);line-height:1.5;margin:3px 0 0}
 .v4Decision{background:linear-gradient(130deg,#18362b5e,#1121304a)}
@@ -308,7 +308,7 @@
 @keyframes v6Moving{to{background-position:200% 0}}@keyframes v6Pulse{50%{opacity:.4;transform:scale(.9)}}
 /* Camera explorer, clustering controls, still-image inspection */
 .v6CameraDock{position:absolute;right:20px;top:77px;width:min(355px,calc(100% - 40px));z-index:14;border:1px solid #45616c;box-shadow:0 20px 70px #0007;background:#0e202eeb;backdrop-filter:blur(20px);border-radius:15px;overflow:hidden;color:#f0f8fa}
-.v6CameraDockTop{padding:14px 15px;display:flex;justify-content:space-between;gap:8px;align-items:start;border-bottom:1px solid #325060}.v6CameraDockTop>div{display:grid;gap:7px}.v6CameraDockTop span{display:flex;align-items:center;gap:7px;font-size:9px;letter-spacing:.12em;color:#9ccad2;font-weight:800}.v6CameraDockTop strong{font-size:14px;font-family:'Space Grotesk'}.v6CameraDockTop button{display:grid;place-items:center;border:0;background:#1a3748;color:#d9eef1;border-radius:7px;padding:7px}
+.v6CameraDockTop{padding:14px 15px;display:flex;justify-content:space-between;gap:8px;align-items:flex-start;border-bottom:1px solid #325060}.v6CameraDockTop>div{display:grid;gap:7px}.v6CameraDockTop span{display:flex;align-items:center;gap:7px;font-size:9px;letter-spacing:.12em;color:#9ccad2;font-weight:800}.v6CameraDockTop strong{font-size:14px;font-family:'Space Grotesk'}.v6CameraDockTop button{display:grid;place-items:center;border:0;background:#1a3748;color:#d9eef1;border-radius:7px;padding:7px}
 .v6CameraImage{height:210px;background:#061320;display:grid;place-items:center;overflow:hidden}.v6CameraImage img{display:block;width:100%;height:100%;object-fit:contain}.v6ImageUnavailable{display:flex;align-items:center;justify-content:center;flex-direction:column;text-align:center;gap:9px;padding:20px;color:#a7c4d0}.v6ImageUnavailable strong{font-size:12px;color:#dceaf0}.v6ImageUnavailable span{font-size:10px;line-height:1.5}.v6CameraDockFooter{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:13px 14px}.v6CameraDockFooter span{color:#9eb8c3;font-size:9px;line-height:1.5}.v6CameraDockFooter button{border:1px solid #456979;color:#e2f6fa;background:#1b3c4a;white-space:nowrap;border-radius:7px;padding:8px;display:flex;gap:5px;align-items:center;font-size:10px}
 .v6CameraList .v2PanelHeading h2{display:flex;align-items:center;gap:9px}.v6CameraCounter{font-size:10px;color:var(--muted);white-space:nowrap}.v6CameraList>p{font-size:11px;line-height:1.6;color:var(--muted);margin:14px 17px 10px}.v6CameraSearch{margin:5px 16px 13px;padding:10px;display:flex;gap:8px;align-items:center;border:1px solid var(--line);border-radius:9px;color:var(--muted)}.v6CameraSearch input{width:100%;background:transparent;border:0;outline:0;color:var(--ink);font-size:11px}.v6CameraListItems{display:grid;gap:6px;margin:0 14px}.v6CameraListItems>button{background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:11px;display:flex;gap:10px;align-items:center;text-align:left;color:var(--ink);min-width:0}.v6CameraListItems>button svg{flex:none;color:#249dc1}.v6CameraListItems>button>span{flex:1;min-width:0}.v6CameraListItems>button strong,.v6CameraListItems>button small{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.v6CameraListItems>button strong{font-size:11px}.v6CameraListItems>button small{font-size:9px;color:var(--muted);margin-top:5px}.v6CameraHint{color:var(--muted);font-size:10px;line-height:1.55;padding:13px 17px 17px}.v6CameraEmpty{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:11px;padding:20px}.v6CameraEmpty svg{flex:none}
 .v2Shell[data-theme="light"] .v6CameraListItems>button:hover{background:#e8f5ee}
@@ -413,7 +413,7 @@
 .v8IntelItems button>svg{flex:none;color:var(--muted);margin-top:8px}
 .v8SeverityPin{display:inline-block;width:8px;height:8px;border-radius:50%;margin-top:6px;flex:none;background:#d5b757}
 .v8SeverityPin.high{background:#e87565;box-shadow:0 0 0 4px #e8756520}.v8SeverityPin.low{background:#30bd92}
-.v8IntelListFooter{padding:13px 15px;border-top:1px solid var(--line);font-size:10px;line-height:1.55;color:var(--muted);display:flex;align-items:start;gap:7px}
+.v8IntelListFooter{padding:13px 15px;border-top:1px solid var(--line);font-size:10px;line-height:1.55;color:var(--muted);display:flex;align-items:flex-start;gap:7px}
 .v8IntelListFooter svg{flex:none;margin-top:2px}
 .v8EmptySearch{padding:16px;color:var(--muted);font-size:11px}
 .v8IntelMapBlock{position:relative;min-width:0}

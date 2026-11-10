@@ -5,8 +5,10 @@ import type { Map as LibreMap, GeoJSONSource } from 'maplibre-gl';
 import { LocateFixed, Play, Pause, RotateCcw, Camera as CameraIcon, RefreshCcw, X, Mountain, Layers, Building2 } from 'lucide-react';
 import type {MissionSnapshot,DispatchPlan,LayerSelection,Incident,Position,CitySignals,Camera,IncidentEvidence,CityChanges} from '@/lib/types';
 import {api} from '@/lib/api';
+import {fleetColor} from '@/lib/fleet-colors';
+import StopPlot from './stop-plot';
 
-type Props={snapshot:MissionSnapshot;activePlan:DispatchPlan;referencePlan?:DispatchPlan|null;isolatedVehicle?:boolean;onIsolateVehicle?:(id:string)=>void;layers:LayerSelection;selectedIncident:string|null;onSelectIncident:(id:string)=>void;selectedVehicle:string|null;onSelectVehicle:(id:string|null)=>void;compare:boolean;theme:'light'|'dark';traffic?:CitySignals|null;signalMode?:boolean;cameraFocusId?:string|null;onCloseCamera?:()=>void;sensorFocusId?:string|null;onSelectSensor?:(id:string|null)=>void;routeFocusToken?:number;comparisonUi?:boolean;comparisonMix?:number;highlightIncidentIds?:string[];avoidedIncidentIds?:string[];focusSensorIds?:string[];evidence?:IncidentEvidence|null;intelMode?:boolean;changes?:CityChanges|null};
+type Props={snapshot:MissionSnapshot;activePlan:DispatchPlan;referencePlan?:DispatchPlan|null;isolatedVehicle?:boolean;onIsolateVehicle?:(id:string)=>void;layers:LayerSelection;selectedIncident:string|null;onSelectIncident:(id:string)=>void;selectedVehicle:string|null;onSelectVehicle:(id:string|null)=>void;compare:boolean;theme:'light'|'dark';traffic?:CitySignals|null;signalMode?:boolean;cameraFocusId?:string|null;onCloseCamera?:()=>void;sensorFocusId?:string|null;onSelectSensor?:(id:string|null)=>void;routeFocusToken?:number;comparisonUi?:boolean;comparisonMix?:number;highlightIncidentIds?:string[];avoidedIncidentIds?:string[];focusSensorIds?:string[];evidence?:IncidentEvidence|null;intelMode?:boolean;changes?:CityChanges|null;overview?:boolean};
 const styles={dark:'https://tiles.openfreemap.org/styles/dark',light:'https://tiles.openfreemap.org/styles/bright'} as const;
 /** Linear interpolation across the schematic polyline, used ONLY for labelled demo playback. */
 function alongRoute(points:Position[],fraction:number):Position{
@@ -45,13 +47,13 @@ function source(map:LibreMap,id:string,data:GeoJSON.FeatureCollection){if(!map.g
 function clusterSource(map:LibreMap,id:string,data:GeoJSON.FeatureCollection){if(!map.getSource(id))map.addSource(id,{type:'geojson',data,cluster:true,clusterRadius:43,clusterMaxZoom:13});else (map.getSource(id) as GeoJSONSource).setData(data);}
 function checkLayer(map:LibreMap,id:string){return Boolean(map.getLayer(id));}
 function ensureLayer(map:LibreMap,layer:Parameters<LibreMap['addLayer']>[0]){if(!checkLayer(map,layer.id))map.addLayer(layer);}
-export default function MapPanel({snapshot,activePlan,referencePlan,isolatedVehicle=false,onIsolateVehicle,layers,selectedIncident,onSelectIncident,selectedVehicle,onSelectVehicle,compare,theme,traffic,signalMode=false,cameraFocusId,onCloseCamera,sensorFocusId,onSelectSensor,routeFocusToken=0,comparisonUi=false,comparisonMix=55,highlightIncidentIds=[],avoidedIncidentIds=[],focusSensorIds=[],evidence,intelMode=false,changes}:Props){
+export default function MapPanel({snapshot,activePlan,referencePlan,isolatedVehicle=false,onIsolateVehicle,layers,selectedIncident,onSelectIncident,selectedVehicle,onSelectVehicle,compare,theme,traffic,signalMode=false,cameraFocusId,onCloseCamera,sensorFocusId,onSelectSensor,routeFocusToken=0,comparisonUi=false,comparisonMix=55,highlightIncidentIds=[],avoidedIncidentIds=[],focusSensorIds=[],evidence,intelMode=false,changes,overview=false}:Props){
  const ref=useRef<HTMLDivElement>(null), mapRef=useRef<LibreMap|null>(null);const [ready,setReady]=useState(false),[error,setError]=useState(false);
  const [playing,setPlaying]=useState(false),[playbackProgress,setPlaybackProgress]=useState(0),progressRef=useRef(0);
  const [followReplay,setFollowReplay]=useState(false),lastFollowCameraAt=useRef(0);
  const [densityView,setDensityView]=useState(false);
  const [legendOpen,setLegendOpen]=useState(false);
- const [wheelZoom,setWheelZoom]=useState(true);
+ const [wheelZoom,setWheelZoom]=useState(!overview);
  const [changeHighlights,setChangeHighlights]=useState(true);
  const [buildings3D,setBuildings3D]=useState(false);
  const [buildingsError,setBuildingsError]=useState(false);
@@ -77,7 +79,13 @@ export default function MapPanel({snapshot,activePlan,referencePlan,isolatedVehi
  useEffect(()=>{
   if(!ref.current||mapRef.current)return;
   maplibregl.setWorkerUrl(new URL('maplibre-gl/dist/maplibre-gl-worker.mjs',import.meta.url).toString());
-  const map=new maplibregl.Map({container:ref.current,style:styles[theme],center:[-3.7005,40.4206],zoom:12.8,pitch:20,bearing:-12,attributionControl:false});
+  let map: LibreMap;
+  try{
+   const style=overview&&theme==='light'?'https://tiles.openfreemap.org/styles/positron':styles[theme];
+   map=new maplibregl.Map({container:ref.current,style,center:[-3.7005,40.4206],zoom:12.8,pitch:overview?0:20,bearing:overview?0:-12,attributionControl:false,cooperativeGestures:overview});
+  }catch{
+   setError(true);return;
+  }
   map.addControl(new maplibregl.NavigationControl({showCompass:false}),'bottom-left');
   map.addControl(new maplibregl.AttributionControl({compact:true}),'bottom-right');
   mapRef.current=map;
@@ -85,13 +93,14 @@ export default function MapPanel({snapshot,activePlan,referencePlan,isolatedVehi
   // normal page scrolling when not working in the full-map view.
   map.scrollZoom.enable();
   map.on('styleimagemissing',(evt)=>{if(evt.id==='wood-pattern'&&!map.hasImage(evt.id)){map.addImage(evt.id,{width:1,height:1,data:new Uint8Array([0,0,0,0])});}});
-  map.on('load',()=>{setReady(true);map.resize();});
+  map.on('load',()=>{setError(false);setReady(true);map.resize();});
   // The map can mount while a tab or column is changing width. Refit its canvas
   // whenever the actual container changes size, not only on window.resize.
   const observer=new ResizeObserver(()=>{map.resize();});
   observer.observe(ref.current);
-  map.on('error',e=>{const msg=String(e?.error?.message||'');if(msg.toLowerCase().includes('style'))setError(true);});
-  map.on('mousemove',e=>{const hits=map.queryRenderedFeatures(e.point,{layers:['incident-dot','incident-icon','camera-dot','camera-icon','traffic-sensors','sensor-icon','zone-dot','vehicle-halos','route-active-stroke'].filter(id=>!!map.getLayer(id))});map.getCanvas().style.cursor=hits.length?'pointer':'';});
+  map.on('error',e=>{const msg=String(e?.error?.message||'');if(msg.toLowerCase().includes('style')||!map.getStyle()?.layers?.length)setError(true);});
+  const selectableLayers=['incident-dot','incident-icon','vehicle-halos','route-active-stroke',...(overview?['delivery-dot']:[])];
+  map.on('mousemove',e=>{const hits=map.queryRenderedFeatures(e.point,{layers:[...selectableLayers,'camera-dot','camera-icon','traffic-sensors','sensor-icon','zone-dot'].filter(id=>!!map.getLayer(id))});map.getCanvas().style.cursor=hits.length?'pointer':'';});
   map.on('dblclick',e=>{
     const matches=map.queryRenderedFeatures(e.point,{layers:['route-active-stroke','route-baseline-stroke','vehicle-halos'].filter(id=>!!map.getLayer(id))});
     const id=String(matches[0]?.properties?.id||'');
@@ -129,11 +138,12 @@ export default function MapPanel({snapshot,activePlan,referencePlan,isolatedVehi
       loadingPopupRef.current?.remove();loadingPopupRef.current=new maplibregl.Popup({closeButton:true}).setLngLat(e.lngLat).setDOMContent(el).addTo(map);
       loadingPopupRef.current.on('close',()=>{setChosenLoadingId(null);loadingPopupRef.current=null;});return;
     }
-    const feature=map.queryRenderedFeatures(e.point,{layers:['incident-dot','incident-icon','vehicle-halos','route-active-stroke'].filter(id=>!!map.getLayer(id))});
+    const feature=map.queryRenderedFeatures(e.point,{layers:selectableLayers.filter(id=>!!map.getLayer(id))});
     if(!feature.length)return;
     const f=feature[0];const id=String(f.properties?.id||'');
     if(f.layer.id==='incident-dot'||f.layer.id==='incident-icon')handlersRef.current.onSelectIncident(id);
     if(f.layer.id==='vehicle-halos'||f.layer.id==='route-active-stroke')handlersRef.current.onSelectVehicle(id);
+    if(f.layer.id==='delivery-dot'&&f.properties?.vehicle)handlersRef.current.onSelectVehicle(String(f.properties.vehicle));
   });
   return ()=>{observer.disconnect();map.remove();mapRef.current=null;};
  },[]);
@@ -164,7 +174,11 @@ export default function MapPanel({snapshot,activePlan,referencePlan,isolatedVehi
    const routes=vehicleId?available.filter(r=>r.vehicle_id===vehicleId):
      [...available,...(compare?(referencePlan||snapshot.original_plan).routes.filter(r=>r.fidelity==='road_network'):[])];
    const coordinates=routes.flatMap(r=>r.coordinates).filter(([lon,lat])=>Number.isFinite(lon)&&Number.isFinite(lat));
-   if(!coordinates.length)return;
+   if(!coordinates.length&&(overview||vehicleId)){
+     const stopIds=vehicleId?new Set(activePlan.routes.find(route=>route.vehicle_id===vehicleId)?.stop_ids):null;
+     coordinates.push(snapshot.depot,...snapshot.deliveries.filter(stop=>!stopIds||stopIds.has(stop.id)).map(stop=>stop.location));
+   }
+  if(!coordinates.length)return;
    const bounds=new maplibregl.LngLatBounds();coordinates.forEach(p=>bounds.extend(p));
    // MapLibre fitBounds is geographic; the viewport is now based on ROUTES,
    // never the entire municipal incident set (which can span the whole region).
@@ -173,8 +187,8 @@ export default function MapPanel({snapshot,activePlan,referencePlan,isolatedVehi
    const width=map.getContainer().clientWidth;
    map.fitBounds(bounds,{padding:{top:Math.min(86,height*.12),bottom:Math.min(95,height*.16),
      left:Math.min(64,width*.08),right:Math.min(64,width*.08)},
-     maxZoom:14.7,duration,essential:true});
- },[ready,signalMode,activePlan,compare,referencePlan,snapshot.original_plan]);
+     maxZoom:14.7,duration});
+ },[ready,signalMode,activePlan,compare,referencePlan,snapshot,overview]);
  useEffect(()=>{
    if(!ready||signalMode)return;
    // Refocus only for a plan/fleet selection or a deliberate Fit action.
@@ -194,8 +208,7 @@ export default function MapPanel({snapshot,activePlan,referencePlan,isolatedVehi
   try{
     const base=(referencePlan||snapshot.original_plan).routes;
     const planned=activePlan.routes;
-    const VISUAL_ROUTE_COLORS:Record<string,string>={'V-01':'#1A66D6','V-02':'#8F47C2','V-03':'#00856C'};
-    const toRoutes=(routes:typeof base)=>fc(routes.map(r=>({type:'Feature' as const,geometry:{type:'LineString' as const,coordinates:r.coordinates},properties:{color:VISUAL_ROUTE_COLORS[r.vehicle_id]||r.color,id:r.vehicle_id,incidentHit:selectedIncident&&r.incidents_near.includes(selectedIncident)?1:0}})));
+    const toRoutes=(routes:typeof base)=>fc(routes.map(r=>({type:'Feature' as const,geometry:{type:'LineString' as const,coordinates:r.coordinates},properties:{color:fleetColor(r.vehicle_id,r.color),id:r.vehicle_id,incidentHit:selectedIncident&&r.incidents_near.includes(selectedIncident)?1:0}})));
     source(map,'route-baseline',toRoutes(base.filter(r=>r.fidelity==='road_network')));source(map,'route-active',toRoutes(planned.filter(r=>r.fidelity==='road_network')));
     // Only render route SEGMENTS close to a selected incident, not the whole route.
     // These segments are proximity evidence, never automatically blocked streets.
@@ -215,11 +228,14 @@ export default function MapPanel({snapshot,activePlan,referencePlan,isolatedVehi
     }
     source(map,'risk-leg-source',fc(nearRoadSegments));
     source(map,'incident-source',fc(snapshot.incidents.filter(x=>(layers.incidents||x.id===selectedIncident||highlightIncidentIds.includes(x.id))&&(!signalMode||x.provenance.origin==='municipal_open_data')).map(x=>pointFeature(x.location,{id:x.id,title:(avoidedIncidentIds.includes(x.id)?'OUTSIDE C · ':'')+x.title.slice(0,60),severity:x.severity,origin:x.provenance.origin,avoided:avoidedIncidentIds.includes(x.id)?1:0,selected:x.id===selectedIncident||highlightIncidentIds.includes(x.id)?1:0}))));
-    const order=new Map(activePlan.routes.flatMap(r=>r.stop_ids.map((id,index)=>[id,{vehicle:r.vehicle_id,number:index+1}] as const)));
-    source(map,'delivery-source',fc(snapshot.deliveries.map(x=>pointFeature(x.location,{id:x.id,priority:x.priority,vehicle:order.get(x.id)?.vehicle||'',seq:order.get(x.id)?.number||0}))));
+    const order=new Map(activePlan.routes.flatMap(r=>r.stop_ids.map((id,index)=>[id,{vehicle:r.vehicle_id,number:index+1,color:fleetColor(r.vehicle_id,r.color)}] as const)));
+    source(map,'delivery-source',fc(snapshot.deliveries.map(x=>{
+      const assigned=order.get(x.id);
+      return pointFeature(x.location,{id:x.id,priority:x.priority,vehicle:assigned?.vehicle||'',seq:assigned?.number||0,color:assigned?.color||'#243B4B'});
+    })));
     source(map,'zone-source',fc(snapshot.loading_zones.map(x=>pointFeature(x.location,{id:x.id,selected:x.id===chosenLoadingId?1:0}))));
     clusterSource(map,'camera-source',fc(snapshot.cameras.filter(x=>x.provenance.origin==='municipal_open_data').map(x=>pointFeature(x.location,{id:x.id,selected:x.id===(chosenCamera?.id||cameraFocusId)?1:0}))));
-    source(map,'vehicle-source',fc(snapshot.vehicles.map((v)=>pointFeature(v.location,{id:v.id,color:v.color,selected:v.id===selectedVehicle?1:0}))));
+    source(map,'vehicle-source',fc(snapshot.vehicles.map((v)=>pointFeature(v.location,{id:v.id,color:fleetColor(v.id,v.color),selected:v.id===selectedVehicle?1:0}))));
     source(map,'traffic-density-source',fc((traffic?.points||[]).map(x=>pointFeature(x.location,{level:x.service_level??-1}))));
     clusterSource(map,'traffic-source',fc((traffic?.points||[]).filter(x=>!focusSensorIds.length||focusSensorIds.includes(x.id)).map(x=>pointFeature(x.location,{id:x.id,selected:x.id===(chosenSensorId||sensorFocusId)?1:0,level:x.service_level??-1,intensity:x.intensity_vph??-1,speed:x.speed_kmh??-1,occupancy:x.occupancy_pct??-1}))));
     source(map,'traffic-changes',fc(signalMode&&changeHighlights&&changes?.available?changes.changed.filter(x=>x.delta>0).map(x=>pointFeature(x.location,{id:x.id,delta:x.delta})):[]));
@@ -240,7 +256,7 @@ export default function MapPanel({snapshot,activePlan,referencePlan,isolatedVehi
     }else{
       source(map,'evidence-radius',fc([]));source(map,'evidence-links',fc([]));
     }
-    source(map,'playback-source',fc(activePlan.routes.filter(r=>r.fidelity==='road_network').map(r=>pointFeature(alongRoute(r.coordinates,progressRef.current),{id:r.vehicle_id,color:r.color}))));
+    source(map,'playback-source',fc(activePlan.routes.filter(r=>r.fidelity==='road_network').map(r=>pointFeature(alongRoute(r.coordinates,progressRef.current),{id:r.vehicle_id,color:fleetColor(r.vehicle_id,r.color)}))));
     ensureLayer(map,{id:'route-shadow',type:'line',source:'route-active',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#ffffff','line-width':10,'line-opacity':0.78}});
     ensureLayer(map,{id:'route-baseline-ghost',type:'line',source:'route-baseline',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#8194a0','line-width':2.2,'line-opacity':0}});
     ensureLayer(map,{id:'route-baseline-stroke',type:'line',source:'route-baseline',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':['get','color'],'line-dasharray':[1.9,1.5],'line-offset':3,'line-width':5.4,'line-opacity':compare?0.96:0}});
@@ -270,7 +286,7 @@ export default function MapPanel({snapshot,activePlan,referencePlan,isolatedVehi
     ensureLayer(map,{id:'incident-halo',type:'circle',source:'incident-source',paint:{'circle-radius':['case',['==',['get','selected'],1],17,11],'circle-color':'#AE3654','circle-opacity':0.2,'circle-stroke-width':1,'circle-stroke-color':'#AE3654','circle-stroke-opacity':0.38}});
     ensureLayer(map,{id:'incident-dot',type:'circle',source:'incident-source',paint:{'circle-radius':['case',['==',['get','selected'],1],13,8.5],'circle-color':['case',['==',['get','avoided'],1],'#207C65',['match',['get','origin'],'synthetic','#6E4CA0','#B43350']],'circle-stroke-color':'#321F1B','circle-stroke-width':2.5}});
     ensureLayer(map,{id:'incident-icon',type:'symbol',source:'incident-source',layout:{'text-font':['Noto Sans Regular'],'text-field':['case',['==',['get','avoided'],1],'✓',['==',['get','origin'],'synthetic'],'S','!'],'text-size':['case',['==',['get','selected'],1],17,13],'text-allow-overlap':true,'text-ignore-placement':true},paint:{'text-color':'#ffffff'}});
-    ensureLayer(map,{id:'delivery-dot',type:'circle',source:'delivery-source',paint:{'circle-radius':5,'circle-color':'#F3F6F9','circle-stroke-width':2,'circle-stroke-color':'#243B4B'}});
+    ensureLayer(map,{id:'delivery-dot',type:'circle',source:'delivery-source',paint:{'circle-radius':overview?6:5,'circle-color':overview?['get','color']:'#F3F6F9','circle-stroke-width':2,'circle-stroke-color':overview?'#fffefa':'#243B4B'}});
     ensureLayer(map,{id:'zone-dot',type:'circle',source:'zone-source',paint:{'circle-radius':['case',['==',['get','selected'],1],12,7.5],'circle-color':'#128C4E','circle-stroke-width':2,'circle-stroke-color':'#142619'}});
     ensureLayer(map,{id:'delivery-order',type:'symbol',source:'delivery-source',layout:{'text-font':['Noto Sans Regular'],'text-field':['to-string',['get','seq']],'text-size':11,'text-offset':[0,1.65],'text-anchor':'top','text-allow-overlap':false},paint:{'text-color':theme==='light'?'#135342':'#E6FBE6','text-halo-color':theme==='light'?'#ffffff':'#07151d','text-halo-width':2}});
     ensureLayer(map,{id:'camera-dot',type:'circle',source:'camera-source',filter:['!', ['has','point_count']],paint:{'circle-radius':['case',['==',['get','selected'],1],13,8],'circle-color':'#138ABC','circle-stroke-width':2,'circle-stroke-color':'#123544'}});
@@ -299,18 +315,19 @@ export default function MapPanel({snapshot,activePlan,referencePlan,isolatedVehi
     map.setFilter('playback-halo',selectedVehicle?['==',['get','id'],selectedVehicle]:null);
     map.setPaintProperty('route-focus-glow','line-opacity',signalMode?0:(selectedVehicle?(compare?0.25*comparisonMix/100:0.25):0));
     map.setFilter('route-focus-glow',selectedVehicle?['==',['get','id'],selectedVehicle]:['==',['get','id'],'__none__']);
-    for(const id of ['route-shadow','route-active-stroke','vehicle-halos','vehicle-centers','playback-halo','playback-vehicle','delivery-dot'])map.setLayoutProperty(id,'visibility',signalMode?'none':'visible');
+    for(const id of ['route-shadow','route-active-stroke','vehicle-halos','vehicle-centers','playback-halo','playback-vehicle'])map.setLayoutProperty(id,'visibility',signalMode?'none':'visible');
+    map.setLayoutProperty('delivery-dot','visibility',!signalMode&&layers.deliveries?'visible':'none');
     for(const id of ['vehicle-halos','vehicle-centers'])map.setFilter(id,isolatedVehicle&&selectedVehicle?['==',['get','id'],selectedVehicle]:null);
     map.setFilter('delivery-dot',isolatedVehicle&&selectedVehicle?['==',['get','vehicle'],selectedVehicle]:null);
     map.setPaintProperty('route-shadow','line-opacity',compare?0.24*Math.min(1,2*comparisonMix/100):(isolatedVehicle?0.38:(selectedVehicle?0.36:0.4)));
     map.setPaintProperty('route-active-stroke','line-opacity',
       selectedVehicle?['case',['==',['get','id'],selectedVehicle],compare?Math.min(1,2*comparisonMix/100):1,isolatedVehicle?0:0.07]:(compare?Math.min(1,2*comparisonMix/100):.97));
     for(const riskLayer of ['route-incident-proximity','v13-risk-segment-core'])map.setLayoutProperty(riskLayer,'visibility',!signalMode&&(!!selectedIncident||highlightIncidentIds.length>0)&&nearRoadSegments.length>0&&(!compare||comparisonMix>0)?'visible':'none');
-    map.setPaintProperty('route-active-stroke','line-width',selectedVehicle?['case',['==',['get','id'],selectedVehicle],8,2]:6.7);
+    map.setPaintProperty('route-active-stroke','line-width',selectedVehicle?['case',['==',['get','id'],selectedVehicle],8,2]:overview?4.6:6.7);
     map.setPaintProperty('route-active-stroke','line-offset',compare?-2.5:0);
     if(map.getLayer('delivery-order'))map.setFilter('delivery-order',selectedVehicle?['==',['get','vehicle'],selectedVehicle]:['==',['get','vehicle'],'__none__']);
   }catch(ex){console.warn('Map layer update failed',ex);}
- },[ready,snapshot,activePlan,layers,selectedIncident,selectedVehicle,compare,referencePlan,isolatedVehicle,traffic,signalMode,theme,densityView,evidence,changes,changeHighlights,comparisonMix,highlightIncidentIds,avoidedIncidentIds,focusSensorIds,chosenCamera?.id,chosenSensorId,chosenLoadingId,cameraFocusId,sensorFocusId]);
+ },[ready,snapshot,activePlan,layers,selectedIncident,selectedVehicle,compare,referencePlan,isolatedVehicle,traffic,signalMode,theme,densityView,evidence,changes,changeHighlights,comparisonMix,highlightIncidentIds,avoidedIncidentIds,focusSensorIds,chosenCamera?.id,chosenSensorId,chosenLoadingId,cameraFocusId,sensorFocusId,overview]);
  // This is a citywide sensor layer, not a route. Reframe the actual observed bounds.
  useEffect(()=>{
    const map=mapRef.current;
@@ -389,9 +406,13 @@ export default function MapPanel({snapshot,activePlan,referencePlan,isolatedVehi
    const incident=snapshot.incidents.find(x=>x.id===selectedIncident);
    if(incident){lastIncidentFocusRef.current=selectedIncident;flyToIncident(incident);}
  },[selectedIncident,ready,snapshot]);
- return <div className={`mapShell ${comparisonUi?'v15MapShellClean':''}`}>
-  <div className="mapSurface" ref={ref}/>
-  {error&&<div className="mapError">Map tiles could not load. Check your connection; mission data remains available.</div>}
+ return <div className={`mapShell ${comparisonUi?'v15MapShellClean':''} ${overview?'missionMapShell':''}`}>
+  <div className="mapSurface" ref={ref} inert={overview&&!ready}/>
+  {overview&&!ready&&<div className="missionPlot">
+    <StopPlot mission={snapshot} plan={activePlan}/>
+    <div className="missionPlotCaption"><strong>Madrid · coordinate preview</strong><span>{error?'Street map unavailable':'Loading street map…'}</span></div>
+  </div>}
+  {error&&!overview&&<div className="mapError">Map unavailable. Check your connection and browser graphics support; mission data remains available.</div>}
   {!comparisonUi&&<div className="mapTopLeft"><span className="mapEyebrow"><span className="signalPing"/> MADRID METROPOLITAN</span><strong>{intelMode?'Incident evidence lens':signalMode?'Traffic measurement grid':'Operational footprint'}</strong><span className="mapCount">{intelMode?'Proximity only · no inferred travel times':signalMode?`${traffic?.points.length||0} verified sensor locations`:`${snapshot.incidents.length} mapped events · ${snapshot.deliveries.length} stops`}</span></div>}
   {!signalMode&&comparisonUi&&!hasRoadGeometries&&<div className="v12AwaitingRoads"><span>STREET-FIRST MODE</span><strong>Route geometry pending</strong><p>Stops are displayed without artificial straight-line connectors. Configure OSRM or ORS and generate a street plan to see both drivable geometries.</p></div>}
 
