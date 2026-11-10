@@ -1,8 +1,17 @@
-# Release verification — 6 November 2026
+# Release verification
 
 This record separates automated checks, live integrations and operator actions for CurbOps AI.
 
-## Automated and runtime checks
+## Dashboard and demo workflow — 10 November 2026
+
+- Native Windows run: **103 backend tests passed**, TypeScript and the Next.js production build passed, and npm audit reported no known advisories.
+- Read-only HTTP smoke checks passed against the running API and frontend: health, simulated mission, comparison slots and web entry point.
+- Edge desktop and mobile: navigation, fleet selection, focus mode, keyboard skip link and theme persistence. A read-only run with the local demo agent kept the plan ID and generation unchanged.
+- With API and tile requests blocked, Overview kept all 15 delivery stops visible and clearly labelled. No estimated street geometry was drawn.
+- The README cover shows scenario A after loading real OSRM street geometry for the simulated fleet. The road engine returned HTTP 200 for a new optimization; the browser opened B/C and the reference-only control moved the visibility slider to zero.
+- GNU Make expanded the Compose targets correctly. Docker was unavailable on this Windows host; CI now runs `make demo` on Linux to validate the full Compose workflow.
+
+## Automated and runtime checks — 6 November 2026
 
 | Check | Observed result |
 |---|---|
@@ -64,7 +73,7 @@ The operator subsequently authorized approval of synthetic plan `precaution-d135
 
 ## Application screenshots
 
-The README gallery contains eleven real desktop captures: overview, operations map, incident investigation, route comparison, full tool catalogue, fullscreen copilot, City Signals, camera explorer, camera selection on the operations map, incident details on the map and the AI Agent workspace. The execution timeline's four tool outputs are expanded in the workspace capture. The additional read-only investigation preserved plan `precaution-d13500a8a` and generation `3`.
+The README gallery contains desktop captures of Overview, Operations Map, incident investigation, route comparison, the tool catalogue, fullscreen copilot, City Signals, the camera explorer, camera and incident details on the map, and the AI Agent workspace. Overview also has a mobile capture. The execution timeline's four tool outputs are expanded in the workspace capture. The 6 November read-only investigation preserved plan `precaution-d13500a8a` and generation `3`.
 
 Camera screenshots display successfully loaded municipal stills (1280 × 720 in the explorer and 960 × 576 from the operations map), with source labels and map attribution visible. No camera availability beyond these checked images is implied. Video files are excluded from the published tree.
 
@@ -80,7 +89,7 @@ The source code is published with all rights reserved. Third-party components an
 
 - The successful live approval used Swagger UI rather than the frontend approval button. Matching/stale approval contracts are covered by backend tests, and the UI rendering states are covered by fixture checks.
 - ORS, Groq, Safari/Firefox, a public deployment, concurrent users and sustained failure/load scenarios were not exercised live.
-- No authentication, durable audit or multi-user isolation. The supplied Compose ports are host-published; use a trusted local development machine.
+- No authentication, durable audit or multi-user isolation. The supplied Compose ports are bound to loopback for the local demo.
 - Public feeds and routing may change or fail. No universal successful bypass, complete sensor coverage or model-answer accuracy is promised.
 
 ## Re-run
@@ -90,8 +99,8 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -r backend/requirements-dev.txt
 (cd frontend && npm ci)
-./scripts/verify.sh
-./scripts/smoke.sh
+make verify
+make demo
 ```
 
 See the [operator guide](demo.md) and [latest CI](https://github.com/alexgomezz9/curbops-ai/actions/workflows/ci.yml). Actual desktop screenshots are in [`media/screenshots/`](../media/screenshots/).

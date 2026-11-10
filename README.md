@@ -1,18 +1,18 @@
-# CurbOps AI — Agentic Urban Fleet Operations
+# CurbOps AI · Madrid fleet operations
 
 [![CI](https://github.com/alexgomezz9/curbops-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/alexgomezz9/curbops-ai/actions/workflows/ci.yml)
 
-**Madrid municipal evidence, agent-led investigation and street-route planning in one workspace.**
+**A dispatch workspace for investigating Madrid road notices and comparing street routes for a simulated delivery fleet.**
 
-Built by [Álex Gómez](https://github.com/alexgomezz9).
+[Run the demo](#run-locally) · [Explore the workspace](#inside-curbops) · [Architecture](#architecture) · [Verification](docs/verification.md)
 
-![CurbOps operations overview](media/screenshots/01-overview.png)
+![Madrid dispatch overview with three colour-coded street routes and the simulated fleet roster](media/screenshots/01-overview.png)
 
-Urban fleet decisions start with scattered information: a roadworks notice, a congested sensor, a camera image and a delivery route. CurbOps connects those pieces on a map. Ask the copilot to investigate, inspect the tools it actually ran, prepare a route proposal and compare the result before approving it.
+[View the mobile layout](media/screenshots/12-overview-mobile.png)
 
-**Observe → investigate → prepare → compare → approve.**
+Open a notice, inspect the nearby sensors and cameras, and see which routes pass through the area. The copilot records each tool it calls. Operators compare the original dispatch with a proposed plan before deciding whether to approve it.
 
-[Explore the application](#inside-curbops) · [Agent tools](#22-tools-one-copilot) · [Architecture](#architecture) · [Run locally](#run-locally)
+Built by [Álex Gómez](https://github.com/alexgomezz9). The local demo starts with `make demo` and needs no model key.
 
 ## Inside CurbOps
 
