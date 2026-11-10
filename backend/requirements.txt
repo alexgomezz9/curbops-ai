@@ -9,3 +9,4 @@ langchain-google-genai>=3.0,<5
 langchain-groq>=1.0,<2
 langgraph>=1.0,<2
 pyproj>=3.6,<4
+tzdata>=2024.1
