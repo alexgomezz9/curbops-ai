@@ -162,28 +162,32 @@ flowchart LR
 
 ## Run locally
 
-Requirements: Docker Engine with Compose v2, available ports 3000/8000, and network access for image builds, map tiles and road routing.
+Requirements: Docker with Compose v2.24 or later, and free local ports 3000 and 8000. Network access is needed to build the images and for street tiles, routing and municipal feeds.
 
 ```bash
 git clone https://github.com/alexgomezz9/curbops-ai.git
 cd curbops-ai
-cp .env.example .env
-docker compose up --build -d
+make demo
 ```
 
-Open **http://localhost:3000**. Select the light theme, load original road routes, then use **Advanced actions → Recalculate with road engine (no LLM)** to prepare B/C without model credentials. **Load city data** downloads the municipal feeds on request.
+Open **http://localhost:3000**. The demo starts with a simulated fleet and needs no keys or `.env` file. `make demo` waits for both services, then checks the web entry point and three read-only API endpoints.
+
+1. Select **Load street routes** to calculate the original dispatch (A).
+2. Open the **Operations Map** and choose **Advanced actions → Recalculate with road engine (no LLM)** to prepare B/C.
+3. Use **Fetch Madrid data** to download municipal feeds, or **Run fleet review** to see a read-only investigation and its tool trace.
 
 ```bash
-./scripts/smoke.sh
-# Stop the application:
-docker compose down
+make status    # List the two services
+make logs      # Recent service output
+make smoke     # Check a running demo
+make down      # Stop the stack
 ```
 
-Keep an existing private `.env` when updating. The supplied Compose file publishes host ports; use a trusted development machine. [Operator guide](docs/demo.md)
+On Windows without GNU Make, run `docker compose up --build --wait` and `docker compose down` directly. The Compose ports are bound to loopback for a local, single-user demo. [Operator guide](docs/demo.md)
 
 ### Connect Gemini
 
-Configure the untracked backend `.env`:
+For model or routing credentials, create a private `.env` at the repository root using `.env.example` as a reference. Keep any existing file. For Gemini:
 
 ```dotenv
 AGENT_PROVIDER=google
@@ -199,13 +203,13 @@ Use a model available to your project. Groq is an alternative through `AGENT_PRO
 
 ### Verify
 
-Install `backend/requirements-dev.txt` in a Python virtual environment and run `npm ci` in `frontend/`, then:
+With Python 3.12 and Node.js 22, install `backend/requirements-dev.txt` in an activated virtual environment and run `npm ci` in `frontend/`, then:
 
 ```bash
-./scripts/verify.sh
+make verify
 ```
 
-Backend tests mock outbound providers. Live integration and browser checks are recorded separately in [verification](docs/verification.md).
+The backend tests mock outbound providers. CI also builds the Compose demo and checks its entry points. For a native API instance, run `python scripts/smoke.py --web-url http://localhost:3000`. [Verification record](docs/verification.md)
 
 ## Data and operating boundaries
 

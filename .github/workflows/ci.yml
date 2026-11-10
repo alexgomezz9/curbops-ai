@@ -30,3 +30,12 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run build
+  demo:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: make demo
+      - if: failure()
+        run: make logs
+      - if: always()
+        run: make down

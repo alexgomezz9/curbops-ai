@@ -4,9 +4,9 @@ Use a local single-user instance. The sequence prepares synthetic proposals and 
 
 ## Start
 
-Follow [Run locally](../README.md#run-locally), open `http://localhost:3000`, and select the light theme. Do not replace an existing private `.env` with an example file. For the real agent, configure Gemini or Groq in the backend; the manual road engine works without a model key.
+Run `make demo` from the repository root and open `http://localhost:3000`. Overview opens on the original dispatch, with the roster and the simulated/municipal data context. Configure Gemini or Groq only if you want model calls; the road engine and local agent run without a model key. See [Run locally](../README.md#run-locally) for the Compose commands and configuration.
 
-1. **Load original routes.** This creates road scenario A without a proposal.
+1. **Load street routes** in Overview, or **Load original routes** in Operations Map. This creates road scenario A without a proposal.
 2. **Load city data.** Check individual source results and downloaded/observed timestamps. A failed feed stays unavailable.
 3. **Prepare the fleet.** Ask:
 
@@ -32,10 +32,9 @@ With `AGENT_PROVIDER=demo`, request a read-only fleet count or source review. Th
 
 ## Results and evidence
 
-The [verification record](verification.md) gives observed metrics, tests, security audit and remaining limits. All five screenshots in [`media/screenshots/`](../media/screenshots/) come from the running application in the light theme. Synthetic metrics must remain labelled when sharing the demo.
+The [verification record](verification.md) gives observed metrics, tests and operating limits. The [screenshots](../media/screenshots/) come from the running application. Synthetic metrics must remain labelled when sharing the demo.
 
 ```bash
-./scripts/smoke.sh
-# Stop this project's services when finished:
-docker compose down
+make smoke
+make down
 ```
