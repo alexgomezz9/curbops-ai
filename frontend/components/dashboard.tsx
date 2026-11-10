@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import MapPanel from './map-panel';
 import MissionOverview from './mission-overview';
+import ScenarioComparison, {scenarioNames} from './scenario-comparison';
 import BriefingMarkdown from './briefing-markdown';
 import AgentRunVisual from './agent-run-visual';
 import CitySignalsPage from './city-signals';
@@ -158,6 +159,9 @@ export default function Dashboard(){
   const proposed=snapshot.proposed_plan||snapshot.approved_plan;
   const mapScenarioPlan=(key:ScenarioId):DispatchPlan|null=>
     (key==='A'?scenarioBundle?.A||snapshot.original_plan:key==='B'?scenarioBundle?.B||null:scenarioBundle?.C||proposed||null);
+  const availablePairs:ComparisonId[]=(['BC','AC','AB'] as const).filter(pair=>
+    Boolean(mapScenarioPlan(pair[0] as ScenarioId)&&mapScenarioPlan(pair[1] as ScenarioId)));
+  const defaultPair=availablePairs[0];
   const activeScenario:ScenarioId=compare?(comparisonPair==='AB'?'B':'C'):scenario;
   const mapPlan=mapScenarioPlan(activeScenario)||snapshot.original_plan;
   // Comparison identity is invariant, independent of whichever tab was previously active.
@@ -461,6 +465,15 @@ export default function Dashboard(){
     setFleetOpen(Boolean(vehicleId));setRouteFocusToken(x=>x+1);setView('map');
   }
 
+  function pickComparison(pair:ComparisonId){
+    setComparisonPair(pair);setScenario(pair==='AB'?'B':'C');
+  }
+
+  function openComparison(){
+    if(!defaultPair)return;
+    pickComparison(defaultPair);setCompare(true);setComparisonMix(50);
+  }
+
   function openOverviewMap(vehicleId?:string|null){
     chooseScenario('A');
     setSelectedIncident(null);
@@ -509,6 +522,8 @@ export default function Dashboard(){
           selectedIncident={null} onSelectIncident={showIncident} selectedVehicle={null} onSelectVehicle={openOverviewMap}
           compare={false} theme={theme} traffic={signals} routeFocusToken={routeFocusToken}/>}
         connected={backendUp} roadAvailable={roadAvailable} busy={busy!==null} loadingRoutes={busy==='replan'} loadingSources={sourceBusy}
+        comparisonLabel={defaultPair?('Compare '+defaultPair[0]+' and '+defaultPair[1]):undefined}
+        onCompare={()=>{openComparison();setSelectedVehicle(null);setSelectedIncident(null);setIsolatedVehicle(false);setView('map');}}
         onMap={openOverviewMap} onLoadRoutes={()=>void loadOriginalRoads()}
         onInvestigate={()=>{setView('agent');void runAgent(FLEET_REVIEW);}}
         onIncident={showIncident} onIncidents={()=>setView('intel')}
@@ -522,22 +537,17 @@ export default function Dashboard(){
               <div className="v17MapActions">
                 <div className="v18FleetColors" title="Vehicle route colors">{snapshot.vehicles.map(vehicle=><span key={vehicle.id}><i style={{background:fleetColor(vehicle.id,vehicle.color)}}/> {vehicle.id}</span>)}</div>
                 <div className="v17ScenarioSwitch" role="group" aria-label="Route scenarios">
-                  {(['A','B','C'] as const).map(id=><button key={id} className={scenario===id?'active':''} disabled={id!=='A'&&!mapScenarioPlan(id)} onClick={()=>chooseScenario(id)} title={id==='A'?'Original plan':id==='B'?'Road-time optimization':'Indicative risk proposal'}>{id}<span>{id==='A'?'Original':id==='B'?'No risk':'Risk-aware'}</span></button>)}
+                  {(['A','B','C'] as const).map(id=><button key={id} className={!compare&&scenario===id?'active':''} disabled={id!=='A'&&!mapScenarioPlan(id)} onClick={()=>chooseScenario(id)} title={id+" · "+scenarioNames[id]} aria-pressed={!compare&&scenario===id}>{id}<span>{scenarioNames[id]}</span></button>)}
                 </div>
-                <button className={`v17ToolBtn ${compare?'selected':''}`} aria-pressed={compare} disabled={!scenarioBundle?.C} onClick={()=>{setCompare(v=>!v);if(!compare){setComparisonPair('BC');setScenario('C');setComparisonMix(50);}}} title="Compare scenarios"> <GitCompareArrows size={16}/><span>Compare</span></button>
+                <button className={`v17ToolBtn ${compare?'selected':''}`} aria-pressed={compare} disabled={!defaultPair} onClick={()=>compare?setCompare(false):openComparison()} title="Compare scenarios"> <GitCompareArrows size={16}/><span>Compare</span></button>
                 <button className="v17ToolBtn" onClick={()=>{setSelectedIncident(null);setHighlightIncidentIds([]);setSelectedVehicle(null);setIsolatedVehicle(false);setRouteFocusToken(x=>x+1);}} title="Fit entire fleet"><MapPinned size={16}/><span>Fit</span></button>
                 <button className="v17ToolBtn" onClick={()=>setMapExpanded(x=>!x)} title={mapExpanded?'Exit focus mode':'Fullscreen map + copilot'}>{mapExpanded?<Minimize2 size={17}/>:<Maximize2 size={17}/>}</button>
               </div>
             </header>
-            {compare&&referencePlan&&<div className="v17CompareRail">
-              <select value={comparisonPair} aria-label="Compared scenarios" onChange={e=>{const pair=e.target.value as ComparisonId;setComparisonPair(pair);setScenario(pair.endsWith('C')?'C':'B');}}>
-                <option value="AB">A vs B · Optimization</option>
-                <option value="BC">B vs C · Risk</option>
-                <option value="AC">A vs C · Total</option>
-              </select>
-              <span>{referenceScenario}</span><input type="range" min="0" max="100" value={comparisonMix} aria-label="Route comparison visibility" onChange={e=>setComparisonMix(Number(e.target.value))}/><span>{activeScenario}</span>
-              <button onClick={()=>setComparisonMix(0)} className={comparisonMix===0?'active':''}>Reference</button><button onClick={()=>setComparisonMix(50)} className={comparisonMix===50?'active':''}>Both</button><button onClick={()=>setComparisonMix(100)} className={comparisonMix===100?'active':''}>Proposal</button>
-            </div>}
+            {compare&&referencePlan&&<ScenarioComparison pair={comparisonPair} availablePairs={availablePairs}
+              referenceId={referenceScenario} candidateId={activeScenario} reference={referencePlan} candidate={mapPlan}
+              vehicle={selectedVehicle} mix={comparisonMix} stale={Boolean(scenarioBundle?.plan_stale)}
+              onPair={pickComparison} onMix={setComparisonMix}/>}
             {!baselineReady&&<div className="workspaceRouteSetup">
               <div><Route size={16} aria-hidden="true"/><span><strong>Showing delivery stops</strong><small>{roadAvailable?'Load scenario A to see street routes.':'Street routing requires an API and a routing provider.'}</small></span></div>
               {roadAvailable&&<button disabled={busy!==null} onClick={()=>void loadOriginalRoads()}>{busy==='replan'?'Loading routes…':'Load original routes'}</button>}

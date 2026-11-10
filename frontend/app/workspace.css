@@ -147,6 +147,12 @@
 .missionMapFoot > div { display: flex; flex-wrap: wrap; align-items: baseline; gap: 3px 10px; }
 .missionMapFoot strong { font-size: 21px; letter-spacing: -.045em; font-variant-numeric: tabular-nums; }
 .missionMapFoot > div > span { color: var(--subtext); font-size: 12px; }
+.missionMapLegend { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 15px; padding: 9px 17px; border-bottom: 1px solid var(--rule); color: var(--subtext); font-size: 11px; }
+.missionMapLegend span { display: inline-flex; align-items: center; gap: 5px; }
+.missionMapLegend i { display: inline-grid; place-items: center; width: 15px; height: 15px; border-radius: 50%; color: #fff; font: 750 9px system-ui; }
+.missionMapLegend .missionLegendStop { width: 10px; height: 10px; margin-inline: 2px; background: #1a66d6; }
+.missionLegendScenario { background: #6e4ca0; }
+.missionLegendNotice { background: #b43350; }
 .missionRail { min-width: 0; display: flex; flex-direction: column; gap: 16px; }
 .missionRows { margin: 0; padding: 0; list-style: none; }
 .missionRows li { border-top: 1px solid var(--rule); }
@@ -206,6 +212,37 @@
 .v17Workspace .v17ChatForm button { background: #24694f !important; border-radius: 6px; }
 .v17Workspace .v17ChatForm button:disabled { background: #789489 !important; }
 
+.scenarioCompare {
+  display: grid;
+  gap: 8px;
+  flex: none;
+  padding: 10px 13px;
+  background: #f4f6ef;
+  border-bottom: 1px solid #d9dfd4;
+  color: #192c26;
+}
+.scenarioCompareTop, .scenarioCompareControls { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 14px; }
+.scenarioCompareTitle { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 9px; font-size: 14px; }
+.scenarioCompareTitle > span, .scenarioCompareEmpty { color: #52645c; font-size: 11px; }
+.scenarioCompare select { max-width: 100%; padding: 5px 8px; border: 1px solid #cbd6ca; border-radius: 5px; color: #192c26; background: #fffefa; font-size: 12px; }
+.scenarioMetrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 0; padding-block: 7px; border-block: 1px solid #d9dfd4; }
+.scenarioMetrics > div { padding-inline: 10px; min-width: 0; }
+.scenarioMetrics > div:first-child { padding-inline-start: 0; }
+.scenarioMetrics > div + div { border-inline-start: 1px solid #d9dfd4; }
+.scenarioMetrics dt { color: #52645c; font-size: 11px; font-weight: 650; }
+.scenarioMetrics dd { display: flex; align-items: baseline; flex-wrap: wrap; gap: 1px 7px; margin: 3px 0 0; font-size: 14px; font-variant-numeric: tabular-nums; }
+.scenarioMetrics dd small { color: #52645c; font-size: 10px; }
+.scenarioOverlayKey, .scenarioMix, .scenarioMix > div { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; }
+.scenarioOverlayKey { gap: 6px 12px; }
+.scenarioOverlayKey span { display: inline-flex; gap: 6px; align-items: center; font-size: 11px; font-weight: 650; }
+.scenarioOverlayKey i { width: 18px; border-top: 2px solid #24694f; }
+.scenarioOverlayKey i.reference { border-top-style: dashed; }
+.scenarioMix { flex: 1; justify-content: flex-end; }
+.scenarioMix input { width: clamp(54px, 13vw, 145px); accent-color: #24694f; }
+.scenarioMix button { min-height: 28px; padding: 4px 7px; background: #fffefa; color: #244032; border: 1px solid #cbd6ca; border-radius: 5px; font-size: 10px; font-weight: 700; }
+.scenarioMix button[aria-pressed="true"] { color: #fffefa; border-color: #24694f; background: #24694f; }
+.scenarioCompareEmpty { margin: 0; }
+
 @media (max-width: 1120px) {
   .missionIntro { align-items: flex-start; }
   .missionBoard, .missionLower { grid-template-columns: minmax(0, 1fr) minmax(265px, .55fr); }
@@ -228,4 +265,7 @@
   .missionMapFoot { flex-wrap: wrap; }
   .missionLocator { font-size: 10px; }
   .missionIntro p { font-size: 13px; }
+  .scenarioCompareControls { align-items: flex-start; }
+  .scenarioMix { flex-basis: 100%; justify-content: flex-start; }
+  .scenarioMetrics dd { font-size: 12px; }
 }

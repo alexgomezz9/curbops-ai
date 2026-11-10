@@ -17,7 +17,9 @@ type Props = {
   busy: boolean;
   loadingRoutes: boolean;
   loadingSources: boolean;
+  comparisonLabel?: string;
   onMap: (vehicle?: string) => void;
+  onCompare: () => void;
   onLoadRoutes: () => void;
   onInvestigate: () => void;
   onIncident: (id: string) => void;
@@ -28,7 +30,7 @@ type Props = {
 
 export default function MissionOverview({
   mission, baseline, signals, map, connected, roadAvailable, busy, loadingRoutes, loadingSources,
-  onMap, onLoadRoutes, onInvestigate, onIncident, onIncidents, onSignals, onLoadSources,
+  comparisonLabel, onMap, onCompare, onLoadRoutes, onInvestigate, onIncident, onIncidents, onSignals, onLoadSources,
 }: Props) {
   const hasRoutes = baseline.routes.length > 0 && baseline.routes.every(route => route.fidelity === 'road_network');
   const notices = [...mission.incidents].sort((a, b) => priority[a.severity] - priority[b.severity]);
@@ -58,11 +60,19 @@ export default function MissionOverview({
           <span className="missionTag"><span/>{hasRoutes ? 'Street routes' : 'Stop locations'}</span>
         </header>
         <div className="missionMapStage">{map}</div>
+        <div className="missionMapLegend" aria-label="Street map symbols">
+          <span><i className="missionLegendStop" aria-hidden="true"/> Delivery stop</span>
+          {notices.length > municipalNotices && <span><i className="missionLegendScenario" aria-hidden="true">S</i> Scenario notice</span>}
+          {municipalNotices > 0 && <span><i className="missionLegendNotice" aria-hidden="true">!</i> Municipal notice</span>}
+        </div>
         <footer className="missionMapFoot">
           <div><strong>{hasRoutes ? `${distance.format(baseline.metrics.distance_km)} km` : `${count.format(mission.deliveries.length)} stops`}</strong>
             <span>{hasRoutes ? 'Estimated road distance' : 'Original delivery locations'}</span></div>
           {!hasRoutes && roadAvailable && connected && <button className="missionButton missionButtonQuiet" onClick={onLoadRoutes} disabled={busy}>
             <Route size={16} aria-hidden="true"/> {loadingRoutes ? 'Loading routes…' : 'Load street routes'}
+          </button>}
+          {hasRoutes && comparisonLabel && <button className="missionButton missionButtonQuiet" onClick={onCompare}>
+            {comparisonLabel} <ArrowUpRight size={16} aria-hidden="true"/>
           </button>}
         </footer>
       </section>
