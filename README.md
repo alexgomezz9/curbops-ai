@@ -10,10 +10,6 @@ LangChain · LangGraph · FastAPI · Next.js · MapLibre · OSRM
 
 ![Madrid operations overview with street routes, municipal notices and the dispatch copilot](media/screenshots/01-overview.png)
 
-| Agent tool catalogue | Simulated mission | Backend verification |
-|:---:|:---:|:---:|
-| **22 typed tools** | **3 vans · 15 stops** | **103 passing tests** in the recorded run |
-
 ## Investigate Madrid with the copilot
 
 Ask about a municipal roadworks notice in plain language. The copilot checks nearby traffic sensors and camera locations, then pins the notice on the map so the operator can inspect the evidence in context.
@@ -22,10 +18,13 @@ Ask about a municipal roadworks notice in plain language. The copilot checks nea
 
 In this recorded Gemini run, the agent inspected notice **2026/1834** and focused it on the map. Within 800 m, the loaded municipal snapshot contained **39 traffic sensors**, including **4 reporting congestion**, and **13 camera locations**. The tool trace recorded the evidence lookup and map action. The dispatch plan stayed at the same generation.
 
-| Incident evidence and nearby traffic readings | Municipal camera still |
-|---|---|
-| [![Evidence inspector showing observations near a Madrid notice](media/screenshots/03-agent-investigation.png)](media/screenshots/03-agent-investigation.png) | [![Camera catalogue with a municipal still image](media/screenshots/08-camera-explorer.png)](media/screenshots/08-camera-explorer.png) |
-| [City Signals](media/screenshots/07-city-signals.png) | [Camera on the map](media/screenshots/09-map-camera.png) |
+### Incident evidence and nearby traffic readings
+
+![Evidence inspector showing observations near a Madrid notice](media/screenshots/03-agent-investigation.png)
+
+### Municipal cameras
+
+![Camera catalogue with a municipal still image](media/screenshots/08-camera-explorer.png)
 
 ## Inside CurbOps
 
@@ -35,12 +34,21 @@ In this recorded Gemini run, the agent inspected notice **2026/1834** and focuse
 4. **Review.** Inspect the executed tools and their outputs in the trace. The operator approves a specific, current proposal through a separate API action.
 
 <details>
-<summary><strong>Explore the workspace gallery</strong></summary>
+<summary><strong>Explore more screens</strong></summary>
 
-| Operations Map | City Signals |
-|---|---|
-| [![Operations Map with street routes and copilot](media/screenshots/02-operations-map.png)](media/screenshots/02-operations-map.png) | [![Sensor map, service-level distribution and source diagnostics](media/screenshots/07-city-signals.png)](media/screenshots/07-city-signals.png) |
-| [Fullscreen copilot](media/screenshots/06-fullscreen-copilot.png) | [Notice on the map](media/screenshots/10-map-incident.png) |
+### Operations Map
+
+![Operations Map with street routes and copilot](media/screenshots/02-operations-map.png)
+
+### City Signals
+
+![Sensor map, service-level distribution and source diagnostics](media/screenshots/07-city-signals.png)
+
+### Camera on the map
+
+![A municipal camera still open alongside the Madrid map](media/screenshots/09-map-camera.png)
+
+[Fullscreen copilot](media/screenshots/06-fullscreen-copilot.png) · [Notice on the map](media/screenshots/10-map-incident.png)
 
 </details>
 
@@ -48,30 +56,9 @@ In this recorded Gemini run, the agent inspected notice **2026/1834** and focuse
 
 LangChain's `create_agent`, backed by LangGraph, runs the LLM tool-calling loop. A separate deterministic LangGraph workflow inspects fleet corridors, prioritizes evidence and prepares map actions. FastAPI streams observed tool and graph events over **Server-Sent Events (SSE)** so an operator can follow what the system actually ran.
 
-[![Expanded workflow trace showing completed tool calls and tools available to the agent](media/screenshots/05-agent-observability.png)](media/screenshots/05-agent-observability.png)
+![Copilot workspace with an investigation summary and execution trace](media/screenshots/11-agent-workspace.png)
 
-| AI engineering | Forward deployed engineering (FDE) |
-|---|---|
-| **LLM orchestration.** Typed, allowlisted tools for evidence, route proposals and map actions. Gemini and Groq are optional model providers. | **Operator workflow.** Free-form investigation, map focus, A/B/C comparison and human approval are available in one dispatch workspace. |
-| **Agent observability.** Inspect tool outputs, graph progress and model usage when the provider reports it. | **Geospatial integration.** Madrid Open Data joins municipal notices, sampled traffic readings, camera stills and loading-zone inventory to street routes. |
-| **Human-in-the-loop guardrails.** The backend owns plan state and validates plan identity and freshness at approval. Read-only reviews preserve the current plan. | **Reproducible delivery.** Docker Compose, a demo engine that runs without credentials, and documented checks for browser, provider and approval flows. |
-
-[Agent workspace screenshot](media/screenshots/11-agent-workspace.png) · [Evaluation cases](docs/evaluation.md) · [Release verification](docs/verification.md)
-
-### 22 tools, one copilot
-
-<details>
-<summary><strong>View the tool catalogue</strong></summary>
-
-| Group | Tools |
-|---|---|
-| Fleet and source context | `inspect_fleet`, `get_active_incidents`, `inspect_loading_reserves`, `inspect_traffic_measurements`, `inspect_data_provenance` |
-| Geospatial investigation | `inspect_incident_evidence`, `inspect_vehicle_corridor`, `inspect_incident_fleet_corridor`, `inspect_route_traffic_measurements`, `investigate_fleet_disruptions` |
-| Planning and rehearsal | `prepare_dispatch_proposal`, `prepare_precautionary_avoidance`, `rehearse_incident_response` |
-| Decision audit | `inspect_dispatch_decision`, `inspect_vehicle_decision`, `inspect_incident_route_impact`, `compare_dispatch_scenarios` |
-| Map actions | `show_vehicle_on_map`, `show_incident_on_map`, `show_scenario_on_map`, `show_comparison_on_map`, `highlight_vehicle_incidents_on_map` |
-
-</details>
+The execution trace exposes individual tool outputs and model usage when the provider reports it. The backend owns proposal state and checks plan identity and freshness when an operator approves a plan. [Evaluation cases](docs/evaluation.md) · [Release verification](docs/verification.md)
 
 ## Routing and A/B/C
 
@@ -80,13 +67,6 @@ The road engine builds an OSRM time and distance matrix, then searches a bounded
 ![Route comparison with reference and candidate road geometry and a vehicle-level detour explanation](media/screenshots/04-route-optimization.png)
 
 One recorded OSRM run on **6 November 2026** reduced modelled road distance from **50.65 km to 29.01 km** while keeping all 15 stops. A subsequent request accepted a partial hypothetical bypass for V-01 with an additional **1.36 km and 2.4 base minutes**. The other two vans kept their routes.
-
-| Scenario | Road distance | Base driving time | Stops |
-|---|---:|---:|---:|
-| A · Original dispatch | 50.65 km | 113.5 min | 15 |
-| B · Road-cost optimization | 29.01 km | 67.6 min | 15 |
-| C · Initial risk-aware candidate | 29.01 km | 67.6 min | 15 |
-| C · After the explicit bypass request | 30.37 km | 70.0 min | 15 |
 
 The application checked provider-returned geometry against required stops, notice buffers and detour budgets. Some buffers remained unresolved. Distances and times are modelled results for a synthetic fleet. [Recorded scenario results](docs/verification.md) · [Routing provider budgets](docs/API_BUDGET.md)
 
@@ -108,13 +88,6 @@ flowchart LR
     API -->|Tool events and map actions via SSE| UI
     UI -->|Explicit operator approval| API
 ~~~
-
-| Layer | Stack |
-|---|---|
-| Workspace | Next.js 15, React 19, TypeScript, MapLibre GL JS 6 |
-| API and agent | Python, FastAPI, Pydantic, HTTPX, LangChain, LangGraph |
-| External services | Madrid Open Data, OpenFreeMap, OSRM or ORS, optional Gemini or Groq |
-| Local runtime | Docker Compose with a single-user in-memory store |
 
 [Architecture details](docs/architecture.md) · [Agent runner](backend/app/agents/runner.py) · [Fleet review graph](backend/app/services/fleet_review_graph.py) · [Road planner](backend/app/services/road_plans.py)
 
