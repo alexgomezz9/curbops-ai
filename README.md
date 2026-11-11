@@ -22,7 +22,13 @@ In this recorded Gemini run, the agent inspected notice **2026/1834** and focuse
 
 ![Evidence inspector showing observations near a Madrid notice](media/screenshots/03-agent-investigation.png)
 
-### Municipal cameras
+### Street camera near a roadworks notice
+
+![Madrid map with a municipal camera still, the selected roadworks notice and the copilot response](media/screenshots/14-camera-near-incident.png)
+
+The operator asked about roadworks around Bailén and Ferraz in plain language. The copilot found and marked a notice and summarized nearby observations. The operator then opened the latest municipal still from the street camera at Bailén and Calle Mayor.
+
+### Municipal camera explorer
 
 ![Camera catalogue with a municipal still image](media/screenshots/08-camera-explorer.png)
 
@@ -32,9 +38,6 @@ In this recorded Gemini run, the agent inspected notice **2026/1834** and focuse
 2. **Prepare.** Ask the copilot for a route proposal or run the deterministic road engine directly. The planner uses road-network costs, vehicle capacity and exactly-once delivery assignment.
 3. **Compare.** Overlay the reference and candidate routes for the fleet or one van. Inspect distance, base driving time and stop allocation before accepting a trade-off.
 4. **Review.** Inspect the executed tools and their outputs in the trace. The operator approves a specific, current proposal through a separate API action.
-
-<details>
-<summary><strong>Explore more screens</strong></summary>
 
 ### Operations Map
 
@@ -48,9 +51,13 @@ In this recorded Gemini run, the agent inspected notice **2026/1834** and focuse
 
 ![A municipal camera still open alongside the Madrid map](media/screenshots/09-map-camera.png)
 
-[Fullscreen copilot](media/screenshots/06-fullscreen-copilot.png) · [Notice on the map](media/screenshots/10-map-incident.png)
+### Fullscreen copilot
 
-</details>
+![Madrid operations map and copilot conversation in focus mode](media/screenshots/06-fullscreen-copilot.png)
+
+### Notice on the map
+
+![Selected municipal roadworks notice and its evidence card in Operations Map](media/screenshots/10-map-incident.png)
 
 ## Agentic AI and tool observability
 
