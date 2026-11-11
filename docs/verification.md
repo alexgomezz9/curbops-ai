@@ -2,6 +2,12 @@
 
 This record separates automated checks, live integrations and operator actions for CurbOps AI.
 
+## Map copilot investigation (11 November 2026)
+
+- A Gemini run in Operations Map called `show_incident_on_map` and `inspect_incident_evidence` for municipal notice `2026/1834` near Bailén-Ferraz. The displayed map showed the selected notice, traffic sensor markers and camera locations. [Copilot capture](../media/screenshots/13-copilot-incident-investigation.png)
+- The evidence endpoint confirmed 39 sensors, 4 congested readings, 13 camera locations and 47 loading zones within 800 m of the notice in the loaded snapshot. The run returned no proposal and kept the same plan ID and generation.
+- The web image built in WSL, and `make smoke` passed against the running API and web. Browser checks confirmed that the light sidebar extends to the footer on the incident page, stays in view while scrolling, collapses correctly and fits the mobile viewport.
+
 ## Dashboard and demo workflow — 10 November 2026
 
 - Native Windows run: **103 backend tests passed**, TypeScript and the Next.js production build passed, and npm audit reported no known advisories.

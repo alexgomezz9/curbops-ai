@@ -7,11 +7,16 @@ flowchart LR
     Operator --> Web[Next.js map and copilot]
     Web --> API[FastAPI]
     API --> Store[In-memory scenario state]
-    API --> Agent[LangChain tool agent]
-    Agent --> Tools[Allowlisted investigation and planning tools]
-    Tools --> Roads[OSRM or OpenRouteService]
-    API --> Madrid[Madrid municipal feeds]
-    API -->|Observed SSE events| Web
+    API --> Agent["LangGraph runtime · LangChain create_agent"]
+    API --> Demo[Deterministic demo engine]
+    Agent --> Tools[Typed investigation and planning tools]
+    Tools --> Evidence[Geospatial evidence services]
+    Tools --> FleetGraph[Deterministic LangGraph fleet review]
+    FleetGraph --> Evidence
+    Evidence --> Madrid[Madrid municipal feeds]
+    Tools --> Planner[Deterministic route planner]
+    Planner --> Roads[OSRM or OpenRouteService]
+    API -->|Tool events and map actions via SSE| Web
     Web -->|Explicit human approval| API
 ```
 
