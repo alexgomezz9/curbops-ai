@@ -494,20 +494,22 @@ export default function Dashboard(){
     <a className="workspaceSkip" href="#workspace-main">Skip to workspace</a>
     <div className={`v5Workspace ${navCollapsed?'nav-collapsed':''}`}>
       <aside className="v5Sidebar" aria-label="Workspace navigation">
-        <div className="v5SidebarBrand"><span className="workspaceMark" aria-hidden="true"/><div className="v5BrandText"><strong>CURB<span>OPS</span></strong><small>FLEET OPERATIONS</small></div></div>
-        <div className="v5SidebarDivider"/>
-        <span className="v5SidebarLabel">WORKSPACE</span>
-        <nav className="v5SideNav" aria-label="Main views">
-          <button title="Overview" className={view==='overview'?'active':''} aria-current={view==='overview'?'page':undefined} onClick={()=>setView('overview')}><Activity size={18}/><span>Overview</span></button>
-          <button title="Operations Map" aria-label="Operations Map" className={view==='map'?'active':''} aria-current={view==='map'?'page':undefined} onClick={()=>{setView('map');setRouteFocusToken(x=>x+1);}}><MapPinned size={18}/><span>Operations Map</span><span className="workspaceNavShort" aria-hidden="true">Map</span></button>
-          <button title="City Signals" aria-label="City Signals" className={view==='signals'?'active':''} aria-current={view==='signals'?'page':undefined} onClick={()=>setView('signals')}><Radio size={18}/><span>City Signals</span><span className="workspaceNavShort" aria-hidden="true">Signals</span>{signals?.status==='municipal_open_data'&&<i className="v5NavDot"/>}</button>
-          <button title="Incident Intelligence" aria-label="Incident Intelligence" className={view==='intel'?'active':''} aria-current={view==='intel'?'page':undefined} onClick={()=>setView('intel')}><ScanSearch size={18}/><span>Incident Intelligence</span><span className="workspaceNavShort" aria-hidden="true">Notices</span>{snapshot.source_mode==='live'&&<i className="v5NavDot"/>}</button>
-          <button title="Municipal Cameras" aria-label="Cameras" className={view==='cameras'?'active':''} aria-current={view==='cameras'?'page':undefined} onClick={()=>setView('cameras')}><CameraIcon size={18}/><span>Cameras</span>{snapshot.cameras.some(c=>c.provenance.origin==='municipal_open_data')&&<i className="v5NavDot"/>}</button>
-          <button title="AI Agent" aria-label="AI Agent" className={view==='agent'?'active':''} aria-current={view==='agent'?'page':undefined} onClick={()=>setView('agent')}><BrainCircuit size={18}/><span>AI Agent</span><span className="workspaceNavShort" aria-hidden="true">Agent</span>{agentResult&&<i className="v5NavDot"/>}</button>
-        </nav>
-        <span className="v5SidebarLabel v5NavSecondLabel">DATA CONTEXT</span>
-        <div className="v5SidebarStatus"><span className="v5SidebarPulse"/><div><strong>{snapshot.source_mode==='live'?'Municipal signals':'Synthetic scenario'}</strong><small>{snapshot.source_mode==='live'?'Real observations + simulated fleet':'Fictional vehicles and deliveries'}</small></div></div>
-        <div className="v5SidebarBottom"><button title={navCollapsed?'Expand sidebar':'Collapse sidebar'} aria-label={navCollapsed?'Expand sidebar':'Collapse sidebar'} aria-expanded={!navCollapsed} className="v5Collapse" onClick={()=>setNavCollapsed(x=>!x)}>{navCollapsed?<PanelLeftOpen size={18}/>:<PanelLeftClose size={18}/>}<span>{navCollapsed?'':'Collapse sidebar'}</span></button><div className="v5SideFoot">MADRID · ES</div></div>
+        <div className="workspaceSidebarInner">
+          <div className="v5SidebarBrand"><span className="v2LogoMark" aria-hidden="true">C.</span><div className="v5BrandText"><strong>CURB<span>OPS</span></strong><small>FLEET OPERATIONS</small></div></div>
+          <div className="v5SidebarDivider"/>
+          <span className="v5SidebarLabel">WORKSPACE</span>
+          <nav className="v5SideNav" aria-label="Main views">
+            <button title="Overview" className={view==='overview'?'active':''} aria-current={view==='overview'?'page':undefined} onClick={()=>setView('overview')}><Activity size={18}/><span>Overview</span></button>
+            <button title="Operations Map" aria-label="Operations Map" className={view==='map'?'active':''} aria-current={view==='map'?'page':undefined} onClick={()=>{setView('map');setRouteFocusToken(x=>x+1);}}><MapPinned size={18}/><span>Operations Map</span><span className="workspaceNavShort" aria-hidden="true">Map</span></button>
+            <button title="City Signals" aria-label="City Signals" className={view==='signals'?'active':''} aria-current={view==='signals'?'page':undefined} onClick={()=>setView('signals')}><Radio size={18}/><span>City Signals</span><span className="workspaceNavShort" aria-hidden="true">Signals</span>{signals?.status==='municipal_open_data'&&<i className="v5NavDot"/>}</button>
+            <button title="Incident Intelligence" aria-label="Incident Intelligence" className={view==='intel'?'active':''} aria-current={view==='intel'?'page':undefined} onClick={()=>setView('intel')}><ScanSearch size={18}/><span>Incident Intelligence</span><span className="workspaceNavShort" aria-hidden="true">Notices</span>{snapshot.source_mode==='live'&&<i className="v5NavDot"/>}</button>
+            <button title="Municipal Cameras" aria-label="Cameras" className={view==='cameras'?'active':''} aria-current={view==='cameras'?'page':undefined} onClick={()=>setView('cameras')}><CameraIcon size={18}/><span>Cameras</span>{snapshot.cameras.some(c=>c.provenance.origin==='municipal_open_data')&&<i className="v5NavDot"/>}</button>
+            <button title="AI Agent" aria-label="AI Agent" className={view==='agent'?'active':''} aria-current={view==='agent'?'page':undefined} onClick={()=>setView('agent')}><BrainCircuit size={18}/><span>AI Agent</span><span className="workspaceNavShort" aria-hidden="true">Agent</span>{agentResult&&<i className="v5NavDot"/>}</button>
+          </nav>
+          <span className="v5SidebarLabel v5NavSecondLabel">DATA CONTEXT</span>
+          <div className="v5SidebarStatus"><span className="v5SidebarPulse"/><div><strong>{snapshot.source_mode==='live'?'Municipal signals':'Synthetic scenario'}</strong><small>{snapshot.source_mode==='live'?'Real observations + simulated fleet':'Fictional vehicles and deliveries'}</small></div></div>
+          <div className="v5SidebarBottom"><button title={navCollapsed?'Expand sidebar':'Collapse sidebar'} aria-label={navCollapsed?'Expand sidebar':'Collapse sidebar'} aria-expanded={!navCollapsed} className="v5Collapse" onClick={()=>setNavCollapsed(x=>!x)}>{navCollapsed?<PanelLeftOpen size={18}/>:<PanelLeftClose size={18}/>}<span>{navCollapsed?'':'Collapse sidebar'}</span></button><div className="v5SideFoot">MADRID · ES</div></div>
+        </div>
       </aside>
       <div className="v5ContentArea">
     <header className="v2Topbar">

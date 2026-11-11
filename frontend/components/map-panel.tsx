@@ -81,8 +81,7 @@ export default function MapPanel({snapshot,activePlan,referencePlan,isolatedVehi
   maplibregl.setWorkerUrl(new URL('maplibre-gl/dist/maplibre-gl-worker.mjs',import.meta.url).toString());
   let map: LibreMap;
   try{
-   const style=overview&&theme==='light'?'https://tiles.openfreemap.org/styles/positron':styles[theme];
-   map=new maplibregl.Map({container:ref.current,style,center:[-3.7005,40.4206],zoom:12.8,pitch:overview?0:20,bearing:overview?0:-12,attributionControl:false,cooperativeGestures:overview});
+   map=new maplibregl.Map({container:ref.current,style:styles[theme],center:[-3.7005,40.4206],zoom:12.8,pitch:overview?0:20,bearing:overview?0:-12,attributionControl:false,cooperativeGestures:overview});
   }catch{
    setError(true);return;
   }
